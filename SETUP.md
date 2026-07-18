@@ -17,7 +17,7 @@ detection pipeline and produce **real, measured** precision/recall/AUPRC numbers
 brew install python@3.11 libomp git
 
 # 2. Go to the project folder
-cd ~/Desktop/dynamo
+cd ~/Desktop/muleguard
 
 # 3. Create + activate an isolated Python 3.11 environment
 python3.11 -m venv .venv
@@ -30,7 +30,7 @@ python -m pip install -r requirements.txt
 # 5. Verify everything imported correctly
 python verify_env.py
 
-# 6. Drop DataSet.csv into ~/Desktop/dynamo/data/ then run the pipeline
+# 6. Drop DataSet.csv into ~/Desktop/muleguard/data/ then run the pipeline
 #    (pipeline scripts are built in the next step of the project)
 ```
 
@@ -83,7 +83,7 @@ which brew || echo "Install Homebrew from https://brew.sh first"
 ## 3. Create and activate the virtual environment
 
 ```bash
-cd ~/Desktop/dynamo
+cd ~/Desktop/muleguard
 python3.11 -m venv .venv
 source .venv/bin/activate
 ```
@@ -92,11 +92,11 @@ After activation your prompt shows `(.venv)`. Confirm the right Python:
 
 ```bash
 python --version      # should print Python 3.11.x
-which python          # should point inside .../dynamo/.venv/bin/python
+which python          # should point inside .../muleguard/.venv/bin/python
 ```
 
 To leave the environment later: `deactivate`.
-To re-enter it in a new terminal: `cd ~/Desktop/dynamo && source .venv/bin/activate`.
+To re-enter it in a new terminal: `cd ~/Desktop/muleguard && source .venv/bin/activate`.
 
 ---
 
@@ -148,7 +148,7 @@ Expected output — a table of every library with its version and a final
 Target structure once the pipeline is built:
 
 ```
-dynamo/
+muleguard/
 ├── SETUP.md                 # this file
 ├── requirements.txt         # pinned dependencies
 ├── verify_env.py            # import + version checker
@@ -169,7 +169,7 @@ dynamo/
 Create the empty folders now:
 
 ```bash
-cd ~/Desktop/dynamo
+cd ~/Desktop/muleguard
 mkdir -p data src models reports
 ```
 
@@ -177,7 +177,7 @@ mkdir -p data src models reports
 
 ## 7. The dataset (required to get real numbers)
 
-- The pipeline expects the hackathon file at: **`~/Desktop/dynamo/data/DataSet.csv`**
+- The pipeline expects the hackathon file at: **`~/Desktop/muleguard/data/DataSet.csv`**
 - Expected shape per the PDF: **9,082 rows × 3,924 feature columns + target `F3924`**.
 - ⚠️ It is **not currently in the folder.** Everything installs and the code can
   be written without it, but no measured metric can be produced until it's placed
@@ -230,7 +230,7 @@ on pages 3 and 13 of the submission PDF.
 If the environment ever gets into a bad state, nuke and rebuild:
 
 ```bash
-cd ~/Desktop/dynamo
+cd ~/Desktop/muleguard
 rm -rf .venv
 python3.11 -m venv .venv
 source .venv/bin/activate

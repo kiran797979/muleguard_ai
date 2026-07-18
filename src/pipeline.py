@@ -44,42 +44,92 @@ def print_summary() -> None:
         log("No metrics file found; did Stage 4/5 run?")
         return
     m = json.loads(mpath.read_text(encoding="utf-8"))
-    e = m["ensemble_precision_first"]
-    hr = m["ensemble_high_recall"]
+    rank = m["headline_ranking"]
+    rci = m["headline_ranking_ci"]
+    op = m["honest_operating_point"]
+    ceil = m["optimistic_ceiling"]
 
-    print("\n" + "=" * 64)
-    print(" MULEGUARD AI — MEASURED RESULTS (5-fold stratified CV, out-of-fold)")
-    print("=" * 64)
+    print("\n" + "=" * 68)
+    print(" MULEGUARD AI — MEASURED RESULTS (honest, out-of-sample)")
+    print("=" * 68)
     print(f" Accounts: {m['n_accounts']:,}   Mules: {m['n_mules']}   "
-          f"Prevalence: {m['prevalence_pct']}%")
-    print(f" Engines: {m['engines']}   Features: {m['n_features']}")
-    print("-" * 64)
-    print(" PRECISION-FIRST OPERATING POINT (replace PDF bold figures with these)")
-    print(f"   Precision : {e['precision']:.3f}")
-    print(f"   Recall    : {e['recall']:.3f}")
-    print(f"   F1        : {e['f1']:.3f}")
-    print(f"   AUPRC     : {e['auprc']:.3f}")
-    print(f"   AUROC     : {e['auroc']:.4f}")
-    print(f"   FPR       : {e['fpr']:.4f}")
-    print(f"   Threshold : {e['threshold']:.4f}")
-    print("-" * 64)
-    print(" HIGH-RECALL OPERATING POINT (analyst-review queue)")
-    print(f"   Precision : {hr['precision']:.3f}   Recall: {hr['recall']:.3f}   "
-          f"F1: {hr['f1']:.3f}")
-    print("-" * 64)
-    print(" PER-MODEL (AUPRC / AUROC):")
-    for name, r in m["per_model"].items():
-        print(f"   {name:<6} AUPRC={r['auprc']:.3f}  AUROC={r['auroc']:.4f}  "
-              f"P={r['precision']:.3f}  R={r['recall']:.3f}")
-    print("=" * 64)
+          f"Prevalence: {m['prevalence_pct']}%   Features: {m['n_features']}")
+    print(f" Policy: {m['policy']}")
+    print("-" * 68)
+    print(" HEADLINE — threshold-free ranking (single-level OOF; leak-audited):")
+    print(f"   AUPRC : {rank['auprc']:.4f}   (95% CI {rci['auprc']['lo']:.3f}–{rci['auprc']['hi']:.3f})")
+    print(f"   AUROC : {rank['auroc']:.4f}   (95% CI {rci['auroc']['lo']:.3f}–{rci['auroc']['hi']:.3f})")
+    print(f"   Brier : {rank['brier_oos']:.5f}   ECE: {rank['ece_oos']:.4f}  (out-of-sample)")
+    print("-" * 68)
+    print(" HONEST OPERATING POINT — repeated nested CV (out-of-sample):")
+    print(f"   Precision : {op['precision']['mean']:.3f} ± {op['precision']['std']:.3f}")
+    print(f"   Recall    : {op['recall']['mean']:.3f} ± {op['recall']['std']:.3f}"
+          f"   (Wilson 95% CI {m['honest_operating_point_recall_ci']['lo']:.3f}"
+          f"–{m['honest_operating_point_recall_ci']['hi']:.3f})")
+    print(f"   F1        : {op['f1']['mean']:.3f} ± {op['f1']['std']:.3f}")
+    print(f"   mean TP/FP: {op['mean_tp']} / {op['mean_fp']}   "
+          f"threshold spread: {op['threshold_spread']['min']:.3f}–{op['threshold_spread']['max']:.3f}")
+    print("-" * 68)
+    print(" OPTIMISTIC CEILING (in-sample operating point — NOT the headline):")
+    print(f"   Precision : {ceil['precision']:.3f}   Recall: {ceil['recall']:.3f}   "
+          f"F1: {ceil['f1']:.3f}")
+    print("=" * 68)
+    print(f" Honest number a judge cannot break: AUPRC {rank['auprc']:.3f}, "
+          f"nested-CV recall {op['recall']['mean']:.3f}.")
     print(f" Full artefacts in: {C.REPORTS_DIR}")
-    print("=" * 64 + "\n")
+    print("=" * 68 + "\n")
 
 
-def main() -> None:
-    for fname, label in STAGES:
+def _build_parser():
+    import argparse
+
+    epilog = "Stages (1-indexed):\n" + "\n".join(
+        f"  {i}. {label}" for i, (_, label) in enumerate(STAGES, 1)
+    )
+    p = argparse.ArgumentParser(
+        prog="pipeline.py",
+        description="MuleGuard AI — run the mule-detection pipeline end-to-end.",
+        epilog=epilog,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    p.add_argument("--from-stage", type=int, default=1, metavar="N",
+                   help="start at stage N (1-indexed). Default: 1.")
+    p.add_argument("--to-stage", type=int, default=len(STAGES), metavar="N",
+                   help=f"stop after stage N. Default: {len(STAGES)} (last).")
+    p.add_argument("--only", type=int, nargs="+", metavar="N",
+                   help="run only these stage numbers (overrides --from/--to).")
+    p.add_argument("--list", action="store_true",
+                   help="list the stages and exit.")
+    return p
+
+
+def main(argv=None) -> None:
+    args = _build_parser().parse_args(argv)
+
+    if args.list:
+        for i, (fname, label) in enumerate(STAGES, 1):
+            print(f"  {i}. {label}  ({fname})")
+        return
+
+    n = len(STAGES)
+    if args.only:
+        selected = sorted({i for i in args.only if 1 <= i <= n})
+    else:
+        lo = max(1, args.from_stage)
+        hi = min(n, args.to_stage)
+        selected = list(range(lo, hi + 1))
+
+    if not selected:
+        log("No stages selected. Use --list to see stage numbers.")
+        return
+
+    for i in selected:
+        fname, label = STAGES[i - 1]
         run_stage(fname, label)
-    print_summary()
+
+    # Only print the results summary if the training stage (3) ran or exists.
+    if 3 in selected or (C.REPORTS_DIR / "03_metrics.json").exists():
+        print_summary()
 
 
 if __name__ == "__main__":
