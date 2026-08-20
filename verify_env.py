@@ -26,6 +26,11 @@ REQUIRED = [
     ("seaborn", "seaborn"),
     ("joblib", "joblib"),
     ("tqdm", "tqdm"),
+    ("openpyxl", "openpyxl"),
+    ("pyarrow", "pyarrow"),
+    ("fastapi", "fastapi"),
+    ("uvicorn", "uvicorn"),
+    ("multipart", "python-multipart"),
 ]
 
 
@@ -64,7 +69,8 @@ def main() -> int:
         return 1
 
     print("ALL IMPORTS OK")
-    print("Next: place DataSet.csv in ./data/ and build the pipeline (see SETUP.md §9).")
+    print("Next: place DataSet.csv in ./data/ (or the project root), then run")
+    print("      .\\run.ps1   on Windows,  or  ./run.sh   on macOS/Linux.")
     return 0
 
 

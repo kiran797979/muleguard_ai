@@ -17,6 +17,16 @@ xgboost>=2.0
 lightgbm>=4.3
 imbalanced-learn>=0.12
 
+# --- Data dictionary (Description.xlsx) ---
+# Required to read the F-code -> banking-variable mapping. Without it the
+# pipeline still runs, but leak detection falls back to correlation alone and
+# SHAP reasons stay as opaque F codes.
+openpyxl>=3.1
+
+# --- Fast intermediate storage ---
+# Parquet keeps the 9k x 1.6k intermediates compact; utils falls back to CSV.
+pyarrow>=14.0
+
 # --- Explainability ---
 shap>=0.44
 
@@ -30,6 +40,14 @@ seaborn>=0.13
 # --- Utilities ---
 joblib>=1.3
 tqdm>=4.66
+
+# --- Web layer (API + brutalist command-center UI) ---
+# Serves the trained model and every pipeline report at http://127.0.0.1:8000.
+# No Node, no build step: the UI is plain HTML/CSS/JS under app/static/.
+fastapi>=0.110
+uvicorn[standard]>=0.27
+# Multipart form parsing, for uploading a dataset from the browser.
+python-multipart>=0.0.9
 
 # --- Optional: interactive EDA (comment out if not needed) ---
 jupyterlab>=4.0

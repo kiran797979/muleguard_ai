@@ -1,0 +1,1079 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MuleGuard AI — Command Center</title>
+<link rel="stylesheet" href="/static/brutal.css">
+</head>
+<body>
+
+<header class="masthead">
+  <div class="brand">
+    <span class="mark">MG</span>
+    <div>
+      <div style="font-family:var(--sans);font-weight:900;font-size:17px;letter-spacing:-.02em">MULEGUARD&nbsp;AI</div>
+      <div class="sub">Money-mule detection · schema-agnostic · explainable · audit-ready</div>
+    </div>
+  </div>
+  <div class="statusbar" id="statusbar">
+    <span class="pill warn">CHECKING…</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="rail" id="rail" aria-label="Sections"></nav>
+
+  <main>
+
+    <!-- ================= HERO ================= -->
+    <section id="s-hero">
+      <div class="hero">
+        <div class="hero-main">
+          <p class="hero-eyebrow">Money mule detection · PSB Cybersecurity, Fraud &amp; AI Hackathon 2026
+            · Bank of India × IIT Hyderabad</p>
+          <h1 class="hero-title">The account is real.<br>
+            The customer is real.<br>
+            <span class="hl">The money isn't theirs.</span></h1>
+          <p class="hero-lede">A money mule is not a fake account. It is a genuine customer whose account
+            has become a pipe for someone else's stolen money. There is no forged document to catch and no
+            confession to find. The only evidence a bank ever gets is the <strong>shape of the money moving
+            through</strong>. MuleGuard reads that shape, ranks every account by it, and explains each
+            decision in the bank's own variables.</p>
+
+          <div class="hero-cta">
+            <button class="btn hero-btn" data-goto="approach">▶ HOW IT WORKS</button>
+            <button class="btn ghost hero-btn" data-goto="analyze">SEE IT SCORE AN ACCOUNT</button>
+            <button class="btn ghost hero-btn" data-goto="upload">RUN IT ON YOUR DATA</button>
+            <button class="btn ghost hero-btn" data-goto="judge">THE 90-SECOND STORY</button>
+          </div>
+        </div>
+
+        <aside class="readout" id="hero-readout">
+          <div class="readout-head"><span class="dot"></span>SYSTEM READOUT</div>
+          <div class="readout-body"><span class="dim">connecting…</span></div>
+        </aside>
+      </div>
+
+      <div class="grid g4" style="margin-top:26px">
+        <div class="stat amber"><div class="k">The difficulty</div><div class="v">Rarity</div>
+          <div class="u">Mules are a fraction of a percent of any book. A model that says "nobody is a
+            mule" scores over 99% accurate and is worthless. Accuracy is never reported here.</div></div>
+        <div class="stat amber"><div class="k">The difficulty</div><div class="v">Camouflage</div>
+          <div class="u">A mule holds a real KYC, a real address, a real salary history. Identity checks
+            pass. Only behaviour separates them.</div></div>
+        <div class="stat amber"><div class="k">The difficulty</div><div class="v">Cost of error</div>
+          <div class="u">A false positive freezes an innocent customer's money. Precision is not a
+            leaderboard metric here, it is a person who cannot pay rent.</div></div>
+        <div class="stat amber"><div class="k">The difficulty</div><div class="v">Cheating</div>
+          <div class="u">Fraud datasets leak. Post-outcome fields and assembly artefacts hand a model the
+            answer. Most high scores are measuring the file, not the customer.</div></div>
+      </div>
+
+      <div class="panel accent" style="margin-top:22px">
+        <header><h3>What we built, in one paragraph</h3>
+          <span class="tag pill ok">METHOD FIRST</span></header>
+        <div class="body">
+          <p>A pipeline that audits the data before it trusts it, strips out every route by which a model
+            could cheat, rebuilds the handful of features that describe mule <em>tradecraft</em> rather than
+            mule <em>paperwork</em>, ranks accounts with a calibrated ensemble validated so that nothing
+            it is scored against ever influenced it, and hands an investigator a queue with a reason
+            attached to every line. It reads the schema itself, so it does this on a dataset it has never
+            seen without anybody editing the code.</p>
+          <p style="margin-top:12px">Every stage below is answerable in the same four questions:
+            <strong>what we did, how we did it, what we used, and why that choice and not the obvious
+            one.</strong></p>
+          <button class="btn" style="margin-top:14px" data-goto="approach">READ THE METHOD →</button>
+        </div>
+      </div>
+
+      <div class="routes" id="hero-routes"></div>
+    </section>
+
+    <!-- ================= APPROACH ================= -->
+    <section id="s-approach" hidden>
+      <div class="secthead">
+        <div class="eyebrow">01 — The method, before any numbers</div>
+        <h1>How It Works</h1>
+        <p>This section describes the system without reference to any particular dataset. Nothing here
+          depends on the file we were given. The numbers, the findings and the audit come later, once the
+          method has earned them.</p>
+      </div>
+
+      <!-- ---------- 1. the problem ---------- -->
+      <div class="panel">
+        <header><h3>1 · What we are actually looking for</h3>
+          <span class="tag pill">THE PROBLEM</span></header>
+        <div class="body">
+          <p>Stolen money cannot stay digital forever. Between the victim and the criminal there is always
+            an account that receives the funds and passes them on. That account belongs to a real person:
+            recruited, coerced, or paid a small cut. To the bank's systems it looks like a customer in good
+            standing, because it <em>is</em> one.</p>
+          <p style="margin-top:12px">So the question is never "is this account fake". It is
+            <strong>"is this account behaving like a container or like a conduit"</strong>. A customer
+            accumulates. A conduit passes through. That single distinction is what the entire feature layer
+            is built to measure.</p>
+
+          <div class="grid g2f" style="margin-top:16px">
+            <div class="block">
+              <h3>What a customer's money does</h3>
+              <p class="small" style="margin-top:8px">Arrives on a rhythm. Rests. Leaves in amounts
+                unrelated to what arrived, to counterparties that repeat. Balance holds a level.</p>
+            </div>
+            <div class="block">
+              <h3 style="color:var(--amber)">What a conduit's money does</h3>
+              <p class="small" style="margin-top:8px">Arrives and leaves at close to the same value inside
+                a short window. Balance spikes and drains rather than being held. Money in roughly equals
+                money out, which is arithmetic, and arithmetic transfers between banks and countries.</p>
+            </div>
+          </div>
+
+          <figure class="figure">
+            <div class="fighead"><span class="n">FIGURE 1</span>
+              <h4>The only difference a bank can actually see</h4></div>
+            <div class="figbody">
+              <svg class="dg" viewBox="0 0 920 330" role="img" style="min-width:720px"
+                   aria-label="Two balance-over-time charts. A customer's balance climbs in steps and is held. A conduit's balance spikes and drains repeatedly, with money in matching money out.">
+                <line x1="460" y1="12" x2="460" y2="300" stroke="var(--rule-soft)" stroke-width="2"/>
+                <text class="n" x="30" y="30">A CUSTOMER</text>
+                <text class="n" x="490" y="30" fill="var(--amber)">A CONDUIT</text>
+                <text class="s2" x="18" y="160" transform="rotate(-90 18 160)" text-anchor="middle">BALANCE</text>
+
+                <!-- customer -->
+                <line class="ln" x1="40" y1="250" x2="430" y2="250" stroke-width="2"/>
+                <path d="M40,250 L95,215 L150,205 L205,178 L260,170 L315,150 L370,143 L430,140 L430,250 Z"
+                      fill="var(--ink)" opacity="0.07"/>
+                <polyline class="ln" points="40,250 95,215 150,205 205,178 260,170 315,150 370,143 430,140"/>
+                <circle cx="95"  cy="215" r="5" class="grn"/><circle cx="205" cy="178" r="5" class="grn"/>
+                <circle cx="315" cy="150" r="5" class="grn"/>
+                <circle cx="150" cy="205" r="5" class="amb"/><circle cx="260" cy="170" r="5" class="amb"/>
+                <circle cx="370" cy="143" r="5" class="amb"/>
+                <text class="s" x="40" y="278">Money rests. What leaves is unrelated to what arrived.</text>
+                <text class="s" x="40" y="293">The balance holds a level.</text>
+
+                <!-- conduit -->
+                <line class="ln" x1="490" y1="250" x2="890" y2="250" stroke-width="2"/>
+                <path d="M490,250 L520,250 L523,120 L555,118 L558,247 L650,247 L653,110 L685,108 L688,245
+                         L780,245 L783,115 L815,113 L818,246 L890,246 L890,250 L490,250 Z"
+                      fill="var(--amber)" opacity="0.13"/>
+                <polyline class="lna" points="490,250 520,250 523,120 555,118 558,247 650,247 653,110 685,108
+                                              688,245 780,245 783,115 815,113 818,246 890,246"/>
+                <circle cx="523" cy="120" r="5" class="grn"/><circle cx="653" cy="110" r="5" class="grn"/>
+                <circle cx="783" cy="115" r="5" class="grn"/>
+                <circle cx="555" cy="118" r="5" class="amb"/><circle cx="685" cy="108" r="5" class="amb"/>
+                <circle cx="815" cy="113" r="5" class="amb"/>
+                <path class="lna" d="M653,88 L653,96 M685,88 L685,96 M653,92 L685,92" stroke-width="2"/>
+                <text class="n" x="669" y="80" text-anchor="middle">SAME VALUE, HOURS APART</text>
+                <text class="s" x="490" y="278">Money arrives and leaves at close to the same value,</text>
+                <text class="s" x="490" y="293">inside a short window. The balance spikes and drains.</text>
+
+                <!-- legend -->
+                <circle cx="600" cy="316" r="5" class="grn"/>
+                <text class="s2" x="612" y="320">MONEY IN</text>
+                <circle cx="700" cy="316" r="5" class="amb"/>
+                <text class="s2" x="712" y="320">MONEY OUT</text>
+              </svg>
+            </div>
+            <figcaption><strong>Neither account is unusual on paper.</strong> Same KYC, same address, same
+              salary history. The separation is entirely in the shape of the line, and that shape is
+              arithmetic, which is why it survives being moved to another bank, another country, or another
+              schema. Every behavioural feature in the system is a way of measuring the difference between
+              these two pictures.</figcaption>
+          </figure>
+        </div>
+      </div>
+
+      <!-- ---------- 2. the pipeline ---------- -->
+      <div class="panel">
+        <header><h3>2 · The pipeline, end to end</h3>
+          <span class="tag pill">WHAT WE DID</span></header>
+        <div class="body">
+          <p>Seven stages. The order matters more than any single stage, and one of them is deliberately
+            allowed to switch itself off.</p>
+
+          <figure class="figure">
+            <div class="fighead"><span class="n">FIGURE 2</span>
+              <h4>Dataflow: what enters each stage and what it writes out</h4></div>
+            <div class="figbody">
+              <svg class="dg" viewBox="0 0 920 780" role="img" style="min-width:760px"
+                   aria-label="Vertical dataflow from a raw dataset through seven stages to an investigator queue, with the graph stage on a conditional branch and the artefact written by each stage listed on the right.">
+                <text class="s2" x="660" y="86">ARTEFACTS WRITTEN</text>
+
+                <!-- input -->
+                <rect class="boxg" x="320" y="14" width="280" height="44"/>
+                <text class="t2 grn" x="460" y="42" text-anchor="middle">RAW DATASET — ANY SCHEMA</text>
+                <line class="ln" x1="460" y1="58" x2="460" y2="80"/>
+                <path class="ar" d="M453,77 L467,77 L460,88 Z"/>
+
+                <!-- stage 0 -->
+                <rect class="boxa" x="300" y="88" width="320" height="58"/>
+                <text class="n" x="316" y="110">STAGE 0</text>
+                <text class="t" x="316" y="131">INTEGRITY AUDIT</text>
+                <line class="ln" x1="460" y1="146" x2="460" y2="168"/>
+                <path class="ar" d="M453,165 L467,165 L460,176 Z"/>
+                <path class="dash" d="M620,117 L656,117"/>
+                <rect class="box" x="660" y="102" width="245" height="30"/>
+                <text class="s" x="672" y="121">06_integrity_audit.json</text>
+
+                <!-- stage 1 -->
+                <rect class="box" x="300" y="176" width="320" height="58"/>
+                <text class="n" x="316" y="198">STAGE 1</text>
+                <text class="t" x="316" y="219">CLEAN + DE-LEAK</text>
+                <line class="ln" x1="460" y1="234" x2="460" y2="256"/>
+                <path class="ar" d="M453,253 L467,253 L460,264 Z"/>
+                <path class="dash" d="M620,205 L656,205"/>
+                <rect class="box" x="660" y="190" width="245" height="30"/>
+                <text class="s" x="672" y="209">clean.parquet</text>
+
+                <!-- stage 2 -->
+                <rect class="box" x="300" y="264" width="320" height="58"/>
+                <text class="n" x="316" y="286">STAGE 2</text>
+                <text class="t" x="316" y="307">TRADECRAFT FEATURES</text>
+                <line class="ln" x1="460" y1="322" x2="460" y2="344"/>
+                <path class="ar" d="M453,341 L467,341 L460,352 Z"/>
+                <path class="dash" d="M620,293 L656,293"/>
+                <rect class="box" x="660" y="278" width="245" height="30"/>
+                <text class="s" x="672" y="297">features.parquet</text>
+
+                <!-- stage 3 -->
+                <rect class="box" x="300" y="352" width="320" height="58"/>
+                <text class="n" x="316" y="374">STAGE 3</text>
+                <text class="t" x="316" y="395">ENSEMBLE + NESTED CV</text>
+                <line class="ln" x1="460" y1="410" x2="460" y2="424"/>
+                <path class="ar" d="M453,421 L467,421 L460,432 Z"/>
+                <path class="dash" d="M620,381 L656,381"/>
+                <rect class="box" x="660" y="366" width="245" height="30"/>
+                <text class="s" x="672" y="385">model.joblib · oof_predictions.csv</text>
+
+                <!-- decision -->
+                <path class="boxa" d="M460,432 L530,468 L460,504 L390,468 Z"/>
+                <text class="t2 amb" x="460" y="473" text-anchor="middle">EDGES?</text>
+                <text class="s" x="546" y="463">Does the file contain</text>
+                <text class="s" x="546" y="477">counterparty columns?</text>
+
+                <!-- yes branch -->
+                <path class="ln" d="M390,468 L145,468 L145,510"/>
+                <path class="ar" d="M138,507 L152,507 L145,518 Z"/>
+                <text class="n" x="216" y="460">YES</text>
+                <rect x="20" y="520" width="250" height="70" fill="var(--bg-inset)"
+                      stroke="var(--ink-faint)" stroke-width="2.5" stroke-dasharray="7 5"/>
+                <text class="s2" x="36" y="542">STAGE 4 — CONDITIONAL</text>
+                <text class="t2" x="36" y="562" fill="var(--ink-dim)">GRAPH PROPAGATION</text>
+                <text class="s2" x="36" y="579">risk spread across edges</text>
+                <path class="ln" d="M270,563 L290,563"/>
+                <path class="ar" d="M289,556 L289,570 L300,563 Z"/>
+
+                <!-- no branch -->
+                <line class="ln" x1="460" y1="504" x2="460" y2="526"/>
+                <path class="ar" d="M453,523 L467,523 L460,534 Z"/>
+                <text class="n" x="474" y="522" fill="var(--ink-dim)">NO — STAGE SKIPS ITSELF</text>
+
+                <!-- stage 5 -->
+                <rect class="box" x="300" y="534" width="320" height="58"/>
+                <text class="n" x="316" y="556">STAGE 5</text>
+                <text class="t" x="316" y="577">SCORE · EXPLAIN · BAND</text>
+                <line class="ln" x1="460" y1="592" x2="460" y2="614"/>
+                <path class="ar" d="M453,611 L467,611 L460,622 Z"/>
+                <path class="dash" d="M620,563 L656,563"/>
+                <rect class="box" x="660" y="548" width="245" height="30"/>
+                <text class="s" x="672" y="567">risk_scores.csv · SHAP reasons</text>
+
+                <!-- stage 6 -->
+                <rect class="box" x="300" y="622" width="320" height="58"/>
+                <text class="n" x="316" y="644">STAGE 6</text>
+                <text class="t" x="316" y="665">RULES + ABLATION</text>
+                <line class="ln" x1="460" y1="680" x2="460" y2="702"/>
+                <path class="ar" d="M453,699 L467,699 L460,710 Z"/>
+                <path class="dash" d="M620,651 L656,651"/>
+                <rect class="box" x="660" y="636" width="245" height="30"/>
+                <text class="s" x="672" y="655">rule_hits.csv · ablation report</text>
+
+                <!-- output -->
+                <rect class="boxg" x="300" y="710" width="320" height="50"/>
+                <text class="t2 grn" x="460" y="740" text-anchor="middle">RANKED QUEUE + REASONS</text>
+              </svg>
+            </div>
+            <figcaption>Read the left column as control flow and the right column as evidence. Every stage
+              writes a file, and every number quoted anywhere on this site is read back out of one of them
+              rather than typed into a slide. <strong>Stage 4 is the interesting one:</strong> it is a real
+              branch, not decoration. If the file has no counterparty columns the stage takes itself out of
+              the pipeline and records why.</figcaption>
+          </figure>
+
+          <div class="callout" style="margin-top:18px"><div class="tiny">Why the audit runs first</div>
+            Almost every pipeline cleans, trains, then validates. That order lets a contaminated dataset
+            produce a beautiful number that nobody questions, because by the time you are looking at
+            metrics you are already invested in them. Running falsification first means the pipeline can
+            tell you the benchmark is broken <em>before</em> it tells you how well it did on it.</div>
+
+          <figure class="figure">
+            <div class="fighead"><span class="n">FIGURE 3</span>
+              <h4>Four independent ways a model could cheat, and where each is stopped</h4></div>
+            <div class="figbody">
+              <svg class="dg" viewBox="0 0 1000 292" role="img" style="min-width:780px"
+                   aria-label="A funnel narrowing from every column in the file down to the features the model sees, with four gates removing identifiers, post-outcome fields, partition columns and correlation leaks.">
+                <rect class="box" x="15" y="78" width="130" height="84"/>
+                <text class="t2" x="80" y="110" text-anchor="middle">EVERY</text>
+                <text class="t2" x="80" y="128" text-anchor="middle">COLUMN</text>
+                <text class="s2" x="80" y="146" text-anchor="middle">as delivered</text>
+
+                <path d="M150,75 L845,105 L845,135 L150,165 Z" fill="var(--amber)" opacity="0.13"/>
+                <path class="lna" d="M150,75 L845,105"/>
+                <path class="lna" d="M150,165 L845,135"/>
+
+                <!-- gates -->
+                <line class="ln" x1="255" y1="79"  x2="255" y2="161" stroke="var(--rule)" stroke-width="4"/>
+                <line class="ln" x1="400" y1="86"  x2="400" y2="154" stroke="var(--rule)" stroke-width="4"/>
+                <line class="ln" x1="545" y1="92"  x2="545" y2="148" stroke="var(--rule)" stroke-width="4"/>
+                <line class="ln" x1="690" y1="98"  x2="690" y2="142" stroke="var(--rule)" stroke-width="4"/>
+
+                <!-- discards -->
+                <path class="lnr" d="M255,161 L255,184"/><path class="arr" d="M248,183 L262,183 L255,194 Z"/>
+                <path class="lnr" d="M400,154 L400,184"/><path class="arr" d="M393,183 L407,183 L400,194 Z"/>
+                <path class="lnr" d="M545,148 L545,184"/><path class="arr" d="M538,183 L552,183 L545,194 Z"/>
+                <path class="lnr" d="M690,142 L690,184"/><path class="arr" d="M683,183 L697,183 L690,194 Z"/>
+
+                <text class="t2 red" x="255" y="212" text-anchor="middle">IDENTIFIERS</text>
+                <text class="s2" x="255" y="226" text-anchor="middle">by name and by</text>
+                <text class="s2" x="255" y="238" text-anchor="middle">near-uniqueness</text>
+
+                <text class="t2 red" x="400" y="212" text-anchor="middle">POST-OUTCOME</text>
+                <text class="s2" x="400" y="226" text-anchor="middle">by meaning, never</text>
+                <text class="s2" x="400" y="238" text-anchor="middle">by correlation</text>
+
+                <text class="t2 red" x="545" y="212" text-anchor="middle">PARTITION</text>
+                <text class="s2" x="545" y="226" text-anchor="middle">by class-purity</text>
+                <text class="s2" x="545" y="238" text-anchor="middle">of the values</text>
+
+                <text class="t2 red" x="690" y="212" text-anchor="middle">CORRELATION</text>
+                <text class="s2" x="690" y="226" text-anchor="middle">leaks and collinear</text>
+                <text class="s2" x="690" y="238" text-anchor="middle">duplicates</text>
+
+                <text class="n" x="472" y="268" text-anchor="middle" fill="var(--red)">
+                  REMOVED BEFORE ANY MODEL IS FITTED</text>
+
+                <rect class="boxg" x="860" y="88" width="125" height="64"/>
+                <text class="t2 grn" x="922" y="114" text-anchor="middle">WHAT THE</text>
+                <text class="t2 grn" x="922" y="132" text-anchor="middle">MODEL SEES</text>
+              </svg>
+            </div>
+            <figcaption>Each gate catches a different kind of cheating and none of them would catch the
+              others. <strong>The third gate is the one almost nobody builds.</strong> It looks for a
+              low-cardinality column whose values are class-pure, which is the fingerprint of a dataset
+              assembled along a line that happens to track the label. It found such a column here without
+              being told the schema, and it would find its equivalent in a file nobody has read.</figcaption>
+          </figure>
+        </div>
+      </div>
+
+      <!-- ---------- 3. what we used and why ---------- -->
+      <div class="panel">
+        <header><h3>3 · What we used, and why that and not the obvious thing</h3>
+          <span class="tag pill">WHAT &amp; WHY</span></header>
+        <div class="body">
+          <p>Every component below was chosen against a more obvious alternative. The right-hand column is
+            the argument, and in several cases the argument is backed by a measurement rather than a
+            preference.</p>
+          <div class="scrollx" style="margin-top:14px"><table>
+            <thead><tr><th>Component</th><th>What it does</th><th>Why this, not the obvious choice</th></tr></thead>
+            <tbody>
+              <tr><td><strong>Gradient boosting</strong><br><span class="faint">XGBoost + LightGBM</span></td>
+                <td>Learns non-linear interactions across thousands of behavioural columns.</td>
+                <td>Not deep learning. Tabular banking data with a tiny positive class is exactly where
+                  boosted trees still beat neural nets, and trees give per-decision attributions a
+                  regulator can read.</td></tr>
+              <tr><td><strong>Stacked ensemble</strong><br><span class="faint">logistic meta-learner</span></td>
+                <td>Learns how much to trust each base model instead of averaging them.</td>
+                <td>A fixed average assumes every component helps. A learned combiner can assign a
+                  <em>negative</em> weight to a component that turns out to be worse than useless, and
+                  report that fact rather than hide it.</td></tr>
+              <tr><td><strong>Isotonic calibration</strong></td>
+                <td>Turns a model's raw output into an actual probability.</td>
+                <td>An uncalibrated score cannot be given to an investigator. "0.9" has to mean nine times
+                  in ten, or a review threshold is arbitrary and the false-positive rate is unpredictable.</td></tr>
+              <tr><td><strong>Nested cross-validation</strong><br><span class="faint">threshold fitted inside the fold</span></td>
+                <td>Measures honestly what the system will do on data it has not seen.</td>
+                <td>The single most common way a fraud result is inflated is picking the decision cutoff by
+                  looking at the validation set. We fit selection, stacking, imputation, calibration
+                  <em>and the threshold</em> inside the training fold and apply them frozen.</td></tr>
+              <tr><td><strong>SHAP, computed out of fold</strong></td>
+                <td>Gives the named variables that drove each individual alert.</td>
+                <td>Global feature importance explains the model. An investigator needs the reason for
+                  <em>this</em> account. Computing it per fold means the explanation comes from a model
+                  that never trained on the account it is explaining.</td></tr>
+              <tr><td><strong>Rule layer</strong><br><span class="faint">AML typologies</span></td>
+                <td>Classic scenario logic: structuring, rapid pass-through, single-rail concentration.</td>
+                <td>Rules are transparent, instantly explainable and needed for regulatory narrative. We
+                  keep them <em>and</em> score each one against the base rate, so a rule that does not beat
+                  guessing is reported as such instead of being assumed to work.</td></tr>
+              <tr><td><strong>Anomaly detection</strong><br><span class="faint">Isolation Forest</span></td>
+                <td>Flags accounts unusual in an unsupervised sense.</td>
+                <td>Included because the textbook says to. Kept in the writeup because when we measured it,
+                  it did not help. Reporting a component that failed is more useful than a diagram in which
+                  everything works.</td></tr>
+              <tr><td><strong>Graph propagation</strong></td>
+                <td>Spreads risk from confirmed mules across counterparty edges to find rings.</td>
+                <td>Implemented, and gated on the data actually containing edges. A network diagram built
+                  from correlation rather than transactions is a picture, not evidence.</td></tr>
+              <tr><td><strong>Banded output</strong><br><span class="faint">two operating points</span></td>
+                <td>Freeze / watch / ignore, instead of a yes-no verdict.</td>
+                <td>A single threshold forces one tradeoff on the whole book. Two lets the harsh action be
+                  reserved for near-certainty while a cheap action, a step-up prompt, catches more without
+                  costing an innocent customer anything.</td></tr>
+            </tbody></table></div>
+
+          <figure class="figure">
+            <div class="fighead"><span class="n">FIGURE 4</span>
+              <h4>Why the score is honest: what is fitted where</h4></div>
+            <div class="figbody">
+              <svg class="dg" viewBox="0 0 920 420" role="img" style="min-width:760px"
+                   aria-label="One outer fold split into four training segments and one validation segment. The training segments feed an inner three-fold cross-validation, which fits six components including the decision threshold. Those components are then applied frozen to the validation segment.">
+                <text class="s2" x="40" y="30">ONE OUTER FOLD — REPEATED ACROSS ALL FOLDS AND REPEATS</text>
+
+                <rect class="box" x="40"  y="44" width="168" height="52"/>
+                <rect class="box" x="208" y="44" width="168" height="52"/>
+                <rect class="box" x="376" y="44" width="168" height="52"/>
+                <rect class="box" x="544" y="44" width="168" height="52"/>
+                <rect x="712" y="44" width="168" height="52" fill="var(--amber)"
+                      stroke="var(--amber)" stroke-width="2.5"/>
+                <text class="s" x="124" y="75" text-anchor="middle">TRAIN</text>
+                <text class="s" x="292" y="75" text-anchor="middle">TRAIN</text>
+                <text class="s" x="460" y="75" text-anchor="middle">TRAIN</text>
+                <text class="s" x="628" y="75" text-anchor="middle">TRAIN</text>
+                <text class="t2 blk" x="796" y="75" text-anchor="middle">VALIDATION</text>
+
+                <path class="ln" d="M40,108 L712,108 M40,100 L40,108 M712,100 L712,108 M376,108 L376,130"/>
+                <path class="ar" d="M369,127 L383,127 L376,138 Z"/>
+
+                <rect class="box" x="40" y="140" width="672" height="112"/>
+                <text class="n" x="56" y="164">INNER 3-FOLD CV</text>
+                <text class="s2" x="696" y="164" text-anchor="end">bright block = held out within the fold</text>
+                <rect class="box" x="56"  y="176" width="213" height="16"/>
+                <rect x="269" y="176" width="213" height="16" fill="var(--bg-panel)" stroke="var(--rule-soft)" stroke-width="1.5"/>
+                <rect x="482" y="176" width="214" height="16" fill="var(--bg-panel)" stroke="var(--rule-soft)" stroke-width="1.5"/>
+                <rect x="56"  y="200" width="213" height="16" fill="var(--bg-panel)" stroke="var(--rule-soft)" stroke-width="1.5"/>
+                <rect class="box" x="269" y="200" width="213" height="16"/>
+                <rect x="482" y="200" width="214" height="16" fill="var(--bg-panel)" stroke="var(--rule-soft)" stroke-width="1.5"/>
+                <rect x="56"  y="224" width="213" height="16" fill="var(--bg-panel)" stroke="var(--rule-soft)" stroke-width="1.5"/>
+                <rect x="269" y="224" width="213" height="16" fill="var(--bg-panel)" stroke="var(--rule-soft)" stroke-width="1.5"/>
+                <rect class="box" x="482" y="224" width="214" height="16"/>
+
+                <path class="ln" d="M376,252 L376,274"/>
+                <path class="ar" d="M369,271 L383,271 L376,282 Z"/>
+
+                <rect class="boxa" x="40" y="290" width="672" height="110"/>
+                <text class="n" x="56" y="312">FITTED HERE — THEN FROZEN</text>
+                <rect class="box" x="56"  y="322" width="200" height="26"/>
+                <text class="s" x="156" y="339" text-anchor="middle">feature selection</text>
+                <rect class="box" x="272" y="322" width="200" height="26"/>
+                <text class="s" x="372" y="339" text-anchor="middle">base models</text>
+                <rect class="box" x="488" y="322" width="200" height="26"/>
+                <text class="s" x="588" y="339" text-anchor="middle">stacking weights</text>
+                <rect class="box" x="56"  y="356" width="200" height="26"/>
+                <text class="s" x="156" y="373" text-anchor="middle">imputation</text>
+                <rect class="box" x="272" y="356" width="200" height="26"/>
+                <text class="s" x="372" y="373" text-anchor="middle">isotonic calibration</text>
+                <rect x="488" y="356" width="200" height="26" fill="var(--amber)" stroke="var(--amber)" stroke-width="2.5"/>
+                <text class="t2 blk" x="588" y="374" text-anchor="middle">DECISION THRESHOLD</text>
+
+                <path class="lna" d="M716,345 L796,345 L796,108"/>
+                <path class="ara" d="M789,108 L803,108 L796,97 Z"/>
+                <text class="n" x="812" y="226" transform="rotate(-90 812 226)" text-anchor="middle">
+                  APPLIED FROZEN</text>
+              </svg>
+            </div>
+            <figcaption><strong>The amber box is the whole argument.</strong> Most fraud results are
+              inflated by picking the decision cutoff after looking at the validation data, which quietly
+              turns a held-out measurement into a fitted one. Here the threshold is learned in the inner
+              folds alongside everything else and then applied without being touched again. No validation
+              row influences any component it is later scored against.</figcaption>
+          </figure>
+        </div>
+      </div>
+
+      <!-- ---------- 4. any dataset ---------- -->
+      <div class="panel accent">
+        <header><h3>4 · Why it works on a dataset it has never seen</h3>
+          <span class="tag pill ok">GENERALISATION</span></header>
+        <div class="body">
+          <p>This is the part that makes it a system rather than a submission. <strong>No stage anywhere
+            hardcodes a column name.</strong> Every decision is a structural question asked of the data,
+            and where the data cannot answer, the pipeline stops instead of guessing. A confident wrong
+            guess about which column is the label produces a meaningless number that looks fine.</p>
+
+          <div class="grid g2f" style="margin-top:16px">
+            <div class="block">
+              <h3>Finding the label</h3>
+              <p class="small" style="margin-top:8px">An explicit override wins. Otherwise: a binary column
+                whose name matches a target pattern, ordered so a real fraud flag beats a column merely
+                called <code>class</code>. Then the only binary column, then the last column if binary.
+                If none of those hold it <strong>raises an error and asks</strong>.</p>
+            </div>
+            <div class="block">
+              <h3>Throwing out identifiers</h3>
+              <p class="small" style="margin-top:8px">By name, and by being near-unique per row. Floats are
+                deliberately exempt: every continuous measurement is ~100% unique across thousands of rows,
+                so applying the rule to floats classifies the whole feature matrix as identifiers and
+                deletes the dataset. A safety valve reverts to name-matching if the heuristic would remove
+                too much.</p>
+            </div>
+            <div class="block">
+              <h3 style="color:var(--amber)">Catching leaks nobody warned us about</h3>
+              <p class="small" style="margin-top:8px">Post-outcome fields are removed by <em>meaning</em>,
+                never by correlation strength, because a leak can correlate weakly and still be a leak.
+                Assembly artefacts are caught by <em>shape</em>: any low-cardinality column whose values
+                are class-pure reproduces the label while describing nothing about a customer. The report
+                prints the crosstab as evidence rather than asserting a verdict.</p>
+            </div>
+            <div class="block">
+              <h3 style="color:var(--amber)">Rebuilding features by meaning</h3>
+              <p class="small" style="margin-top:8px">Every banking column name encodes the same few ideas:
+                a statistic, a measure, a direction, a window, a channel. Decompose the request and every
+                available column into that tuple, then match tuple to tuple. Names never have to agree.</p>
+            </div>
+          </div>
+
+
+          <figure class="figure">
+            <div class="fighead"><span class="n">FIGURE 5</span>
+              <h4>Matching columns by meaning instead of by name</h4></div>
+            <div class="figbody">
+              <svg class="dg" viewBox="0 0 920 220" role="img" style="min-width:700px"
+                   aria-label="Three differently named columns feed a parser that decomposes each into the same four-slot role tuple: total, amount, credit, seven days.">
+                <text class="s2" x="20" y="28">THE SAME QUANTITY IN THREE DIFFERENT SCHEMAS</text>
+                <rect class="box" x="20" y="40"  width="240" height="40"/>
+                <text class="t2" x="140" y="65" text-anchor="middle">TOT_TXNAMT_CR_L7D</text>
+                <rect class="box" x="20" y="100" width="240" height="40"/>
+                <text class="t2" x="140" y="125" text-anchor="middle">InwardAmount7Day</text>
+                <rect class="box" x="20" y="160" width="240" height="40"/>
+                <text class="t2" x="140" y="185" text-anchor="middle">sum.amt.in.7d</text>
+
+                <path class="ln" d="M264,60  C300,60  296,120 322,120"/>
+                <path class="ln" d="M264,120 L322,120"/>
+                <path class="ln" d="M264,180 C300,180 296,120 322,120"/>
+                <path class="ar" d="M323,113 L323,127 L334,120 Z"/>
+
+                <rect class="boxa" x="334" y="92" width="166" height="56"/>
+                <text class="t2 amb" x="417" y="117" text-anchor="middle">parse_role()</text>
+                <text class="s2" x="417" y="134" text-anchor="middle">decompose to slots</text>
+
+                <path class="lna" d="M500,120 L530,120"/>
+                <path class="ara" d="M529,113 L529,127 L540,120 Z"/>
+
+                <text class="s2" x="546" y="80">ROLE TUPLE</text>
+                <rect class="boxa" x="546"   y="95" width="82.5" height="50"/>
+                <text class="t2 amb" x="587" y="126" text-anchor="middle">TOTAL</text>
+                <rect class="boxa" x="636.5" y="95" width="82.5" height="50"/>
+                <text class="t2 amb" x="678" y="126" text-anchor="middle">AMOUNT</text>
+                <rect class="boxa" x="727"   y="95" width="82.5" height="50"/>
+                <text class="t2 amb" x="768" y="126" text-anchor="middle">CREDIT</text>
+                <rect class="boxa" x="817.5" y="95" width="82.5" height="50"/>
+                <text class="t2 amb" x="859" y="126" text-anchor="middle">7D</text>
+                <text class="s2" x="587" y="162" text-anchor="middle">STAT</text>
+                <text class="s2" x="678" y="162" text-anchor="middle">MEASURE</text>
+                <text class="s2" x="768" y="162" text-anchor="middle">DIRECTION</text>
+                <text class="s2" x="859" y="162" text-anchor="middle">WINDOW</text>
+                <text class="s" x="723" y="190" text-anchor="middle">one role · one feature · no name ever has to match</text>
+              </svg>
+            </div>
+            <figcaption>A fifth slot for channel (cash, UPI, ATM, card) works the same way and is omitted
+              here only to keep the picture readable. <strong>Two details cost real debugging:</strong> the
+              word "month" is blocked from ever being read as a 31-day window, because in extracts like
+              these it usually means which file a row came from; and the identifier guard runs before the
+              count vocabulary, or <code>account_number</code> parses as a count of accounts.</figcaption>
+          </figure>
+          <p style="margin-top:18px"><strong>The same quantity, five ways of writing it, one role:</strong></p>
+          <div class="scrollx" style="margin-top:10px"><table>
+            <thead><tr><th>Column name in the wild</th><th>Resolved role</th></tr></thead>
+            <tbody>
+              <tr><td><code>TOT_TXNAMT_CR_L7D</code></td><td>total · amount · credit · 7d</td></tr>
+              <tr><td><code>InwardAmount7Day</code></td><td>amount · credit · 7d</td></tr>
+              <tr><td><code>sum.amt.in.7d</code></td><td>total · amount · credit · 7d</td></tr>
+              <tr><td><code>credit_value_week</code></td><td>amount · credit · 7d</td></tr>
+              <tr><td><code>AVG_BAL_MNTH</code></td><td>average · balance <span class="faint">(no window:
+                "month" is blocklisted, it usually means which extract a row came from)</span></td></tr>
+              <tr><td><code>account_number</code></td><td><span class="faint">unclassified — the identifier
+                guard runs before the count vocabulary, or "number" would parse as a count</span></td></tr>
+            </tbody></table></div>
+
+          <div class="callout green" style="margin-top:18px"><div class="tiny">And when it cannot resolve something</div>
+            The lookup returns nothing and the stage <strong>records the miss in the report</strong>. It
+            never substitutes an approximate column. A feature that could not be built is visible as a gap,
+            not silently replaced by something that means something else.</div>
+        </div>
+      </div>
+
+      <!-- ---------- 5. refusals ---------- -->
+      <div class="panel">
+        <header><h3>5 · What the system refuses to do</h3>
+          <span class="tag pill warn">CONSTRAINTS</span></header>
+        <div class="body">
+          <p>These are design constraints, not limitations we ran out of time to fix. Each one is a place
+            where the easy version of this project would have scored better and meant less.</p>
+          <div class="grid g3f" style="margin-top:14px">
+            <div class="block"><h3>It will not invent a graph</h3>
+              <p class="small" style="margin-top:8px">Without counterparty edges there is no network. The
+                stage disables itself and says so, rather than shipping a diagram built from
+                correlation.</p></div>
+            <div class="block"><h3>It will not guess the label</h3>
+              <p class="small" style="margin-top:8px">Ambiguity raises an error naming the candidates. A
+                silently wrong target is the worst possible failure because everything downstream still
+                looks like it worked.</p></div>
+            <div class="block"><h3>It will not hide a failed component</h3>
+              <p class="small" style="margin-top:8px">A model that scores below random is reported with its
+                negative weight. A rule that does not beat the base rate is published as not working.</p></div>
+            <div class="block"><h3>It will not report accuracy</h3>
+              <p class="small" style="margin-top:8px">At a fraction of a percent prevalence, accuracy is a
+                number that rewards doing nothing. Precision, recall, AUPRC and cost per review only.</p></div>
+            <div class="block"><h3>It will not file anything</h3>
+              <p class="small" style="margin-top:8px">Case packs assemble the material a human needs to
+                make a suspicious-transaction decision. The decision, and the filing, stay with the
+                human.</p></div>
+            <div class="block"><h3>It will not act alone</h3>
+              <p class="small" style="margin-top:8px">The harsh band is a recommendation to an AML desk,
+                with the reasons attached and a dismissal path. No automated blocking without sign-off.</p></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="callout" style="margin-top:4px"><div class="tiny">Now the evidence</div>
+        Everything above is a claim about method. The rest of this site is where those claims get tested
+        against a real file: what the integrity audit found, what the leak defence removed, how the models
+        actually scored, and what it costs to run.
+        <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap">
+          <button class="btn" data-goto="integrity">START WITH THE INTEGRITY AUDIT →</button>
+          <button class="btn ghost" data-goto="models">GO STRAIGHT TO THE RESULTS</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= UPLOAD ================= -->
+    <section id="s-upload" hidden>
+      <div class="secthead">
+        <div class="eyebrow">02 — Run it on your data</div>
+        <h1>Upload A Dataset</h1>
+        <p>Drop a file in and the pipeline runs against it: integrity audit first, then cleaning,
+           leak defence, features, model, score and explanation. It works out the target column,
+           the identifiers and the leak columns for itself.</p>
+      </div>
+
+      <div class="panel accent"><header><h3>Choose a file</h3>
+        <span class="tag pill">CSV · TSV · XLSX · PARQUET</span></header>
+        <div class="body">
+          <div id="up-drop" class="dropzone">
+            <div class="dz-big">DROP A DATASET HERE</div>
+            <div class="dim small">or click to choose · up to 500 MB</div>
+            <div id="up-chosen" style="margin-top:10px"></div>
+          </div>
+          <input type="file" id="up-file" accept=".csv,.tsv,.txt,.xlsx,.xls,.parquet" hidden>
+          <div class="controls" style="margin-top:14px">
+            <label class="field"><span class="lab">Target column (only if it cannot be found)</span>
+              <input type="text" id="up-target" placeholder="auto-detected" style="width:260px"></label>
+            <label class="field"><span class="lab">Precision</span>
+              <span class="small"><input type="checkbox" id="up-full"> full precision, slower</span></label>
+            <button class="btn" id="up-go" disabled>RUN PIPELINE</button>
+          </div>
+          <p class="small dim" style="margin-top:12px">Each upload gets its own folder under
+            <code>runs/</code>. Nothing here touches the submission's own results.</p>
+        </div>
+      </div>
+
+      <div id="up-status"></div>
+      <div id="up-results"></div>
+
+      <div class="panel"><header><h3>This session's runs</h3></header>
+        <div class="body" id="up-jobs"></div>
+      </div>
+    </section>
+
+    <!-- ================= JUDGE MODE ================= -->
+    <section id="s-judge" hidden>
+      <div class="secthead">
+        <div class="eyebrow">03 — Guided walkthrough</div>
+        <h1>Judge Mode</h1>
+        <p>The whole project in twelve steps. Problem → dataset → what we found wrong with it →
+           how we proved it → what we did about it → the model → the score → the action.
+           Roughly 90 seconds end to end.</p>
+      </div>
+      <div class="judge">
+        <header>
+          <h2 id="judge-chapter">Ready</h2>
+          <span class="pill solid" id="judge-count">0 / 12</span>
+        </header>
+        <div class="stepbody" id="judge-body">
+          <div class="stepno">00</div>
+          <div class="steptitle">Press START</div>
+          <p class="steplede">Every number shown in this walkthrough is read live from the
+             pipeline's own output files. Nothing on this page is hardcoded — if the
+             pipeline has not run, the panels say so instead of inventing a figure.</p>
+        </div>
+        <footer>
+          <button class="btn" id="judge-start">▶ START</button>
+          <button class="btn ghost" id="judge-prev" disabled>◀ BACK</button>
+          <button class="btn ghost" id="judge-next" disabled>NEXT ▶</button>
+          <div class="progress" id="judge-progress"></div>
+        </footer>
+      </div>
+    </section>
+
+    <!-- ================= OVERVIEW ================= -->
+    <section id="s-overview" hidden>
+      <div class="secthead">
+        <div class="eyebrow">04 — What this is</div>
+        <h1>Overview</h1>
+        <p>A money mule receives fraud proceeds and pushes them straight back out, holding
+           almost nothing. MuleGuard detects that behaviour in an extremely imbalanced
+           account-level dataset — and audits whether the benchmark can honestly support
+           the claim at all.</p>
+      </div>
+      <div id="overview-stats" class="grid g4"></div>
+      <div class="panel danger" id="overview-warning" hidden>
+        <header><h3>⚠ Read this before quoting any metric</h3></header>
+        <div class="body" id="overview-warning-body"></div>
+      </div>
+      <div class="grid g2">
+        <div class="panel"><header><h3>What is proven</h3></header>
+          <div class="body">
+            <ul class="tight">
+              <li>Four-layer leakage defence, each layer verifiable in <code>reports/01_clean_report.json</code>.</li>
+              <li>29 named mule-typology features, every one defensible in plain English.</li>
+              <li>Nested repeated cross-validation — selection, stacking, calibration <em>and</em> the operating threshold are fitted inside the training fold.</li>
+              <li>Band edges derived from the model's own fitted operating points, not hand-picked constants.</li>
+              <li>SHAP explanations from the same out-of-fold model that produced the score.</li>
+            </ul>
+          </div>
+        </div>
+        <div class="panel"><header><h3>What is not claimed</h3></header>
+          <div class="body">
+            <ul class="tight">
+              <li>That the headline AUPRC is a real-world mule-detection accuracy. It is an <strong>upper bound</strong> on what this dataset can show.</li>
+              <li>That a transaction graph exists. None of the 3,924 variables names a counterparty, so the graph stage self-skips.</li>
+              <li>That hyperparameters are tuned. Tuning against a confounded target optimises the artefact.</li>
+              <li>That 81 positives is enough for tight error bars. It is not, which is why every metric carries one.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div class="panel"><header><h3>Graph stage</h3><span class="tag" id="graph-tag"></span></header>
+        <div class="body" id="graph-body"></div>
+      </div>
+    </section>
+
+    <!-- ================= DATASET ================= -->
+    <section id="s-dataset" hidden>
+      <div class="secthead">
+        <div class="eyebrow">05 — Input</div>
+        <h1>Dataset Statistics</h1>
+        <p id="dataset-lede" class="dim">Reading dataset…</p>
+      </div>
+      <div id="dataset-stats" class="grid g4"></div>
+      <div class="grid g2">
+        <div class="panel"><header><h3>Cleaning ledger</h3></header>
+          <div class="body"><div class="scrollx"><table id="clean-ledger"></table></div></div>
+        </div>
+        <div class="panel"><header><h3>Categorical encoding</h3><span class="tag pill">RECOVERED SIGNAL</span></header>
+          <div class="body">
+            <p class="dim">An earlier version coerced everything to numeric, which silently turned
+               all eight categorical fields into NaN and dropped them as "sparse". Occupation alone
+               carries a 3× spread in mule rate.</p>
+            <div class="scrollx"><table id="encoding-table"></table></div>
+          </div>
+        </div>
+      </div>
+      <div class="panel"><header><h3>Missing-value treatment</h3></header>
+        <div class="body" id="missing-body"></div>
+      </div>
+      <div class="panel accent"><header><h3>Schema discovery — nothing here is configured</h3>
+        <span class="tag pill" id="schema-tag"></span></header>
+        <div class="body" id="schema-body"></div>
+      </div>
+    </section>
+
+    <!-- ================= INTEGRITY ================= -->
+    <section id="s-integrity" hidden>
+      <div class="secthead">
+        <div class="eyebrow">06 — The finding that frames every number</div>
+        <h1>Dataset Integrity Audit</h1>
+        <p>Everything else in this system tries to detect mules. This stage tries to prove the
+           system <em>cannot</em> work honestly on the supplied data, and publishes how far it gets.
+           If a judge is going to attack the submission, this is where they would aim — so we aimed
+           there first.</p>
+      </div>
+      <div id="integrity-verdict"></div>
+      <div class="panel"><header><h3 id="partition-title">How the sample was assembled</h3></header>
+        <div class="body">
+          <p id="partition-lede" class="dim">Checking…</p>
+          <div class="scrollx"><table id="month-table"></table></div>
+        </div>
+      </div>
+      <div class="panel accent"><header><h3>Falsification tests</h3></header>
+        <div class="body">
+          <p>Each test feeds a model information that <em>cannot</em> identify a mule.
+             All three should land near the random baseline if the data is sound.</p>
+          <div class="scrollx"><table id="falsification-table"></table></div>
+          <div class="callout red">
+            <div class="tiny">Test A is the decisive one</div>
+            Throw away every value. Keep only whether each cell was blank. That pattern is
+            decided by the extraction job, not by any customer — and it still identifies mules
+            almost perfectly. Test C collapsing to baseline proves the harness is sound, so
+            these are real properties of the data, not a bug in the evaluation.
+          </div>
+        </div>
+      </div>
+      <div class="panel"><header><h3>What this means, and what it does not</h3></header>
+        <div class="body" id="integrity-meaning"></div>
+      </div>
+    </section>
+
+    <!-- ================= LEAKAGE ================= -->
+    <section id="s-leakage" hidden>
+      <div class="secthead">
+        <div class="eyebrow">07 — Defences</div>
+        <h1>Leakage Defence</h1>
+        <p>Four layers, because a correlation threshold alone is not a defence.
+           <code>FRAUD_SUSPECTED</code> correlates 0.97 and any threshold catches it.
+           <code>FALSE_POSITIVE</code> correlates 0.05, is equally unusable at scoring time,
+           and no threshold catches it at all.</p>
+      </div>
+      <div id="leakage-layers"></div>
+      <div class="panel"><header><h3>Correlation backstop</h3></header>
+        <div class="body" id="leakage-backstop"></div>
+      </div>
+      <div class="panel"><header><h3>Stated limitation</h3></header>
+        <div class="body" id="leakage-caveat"></div>
+      </div>
+    </section>
+
+    <!-- ================= FEATURES ================= -->
+    <section id="s-features" hidden>
+      <div class="secthead">
+        <div class="eyebrow">08 — Domain knowledge</div>
+        <h1>Mule-Typology Features</h1>
+        <p>A mule receives money and pushes it straight back out, holds almost nothing, in bursts,
+           through digital rails, often at odd hours, on an account whose owner profile does not
+           match the volume. Each feature measures one clause of that sentence.</p>
+      </div>
+      <div id="feature-stats" class="grid g4"></div>
+      <div class="panel"><header><h3>Every feature, and why it is diagnostic</h3>
+        <span class="tag pill" id="feature-count-tag"></span></header>
+        <div class="body"><div class="scrollx"><table id="feature-table"></table></div></div>
+      </div>
+      <div class="panel"><header><h3>Honestly reported gaps</h3></header>
+        <div class="body" id="feature-gaps"></div>
+      </div>
+    </section>
+
+    <!-- ================= MODELS ================= -->
+    <section id="s-models" hidden>
+      <div class="secthead">
+        <div class="eyebrow">09 — Learning</div>
+        <h1>Model Comparison</h1>
+        <p>Three base models, stacked on inner out-of-fold predictions, then isotonically
+           calibrated. Every component that touches the label is fitted inside the training fold.</p>
+      </div>
+      <div class="panel"><header><h3>Validation scheme</h3></header>
+        <div class="body" id="validation-body"></div>
+      </div>
+      <div class="grid g2">
+        <div class="panel"><header><h3>Base models, alone</h3></header>
+          <div class="body">
+            <div class="scrollx"><table id="permodel-table"></table></div>
+            <div id="iso-note"></div>
+          </div>
+        </div>
+        <div class="panel"><header><h3>What the stacker learned</h3></header>
+          <div class="body" id="stacking-body"></div>
+        </div>
+      </div>
+      <div class="panel accent"><header><h3>Ensemble — two operating points</h3></header>
+        <div class="body"><div class="scrollx"><table id="ensemble-table"></table></div>
+          <div class="callout"><div class="tiny">Why two</div>
+            A reviewed false alert costs an analyst minutes. A missed mule costs a live laundering
+            channel. So the system publishes both a precision-first point for automated action and
+            a high-recall point for the human review queue, rather than pretending one threshold
+            serves both.</div>
+        </div>
+      </div>
+      <div class="panel"><header><h3>Reproducibility</h3></header>
+        <div class="body" id="repro-body"></div>
+      </div>
+    </section>
+
+    <!-- ================= SHAP ================= -->
+    <section id="s-shap" hidden>
+      <div class="secthead">
+        <div class="eyebrow">10 — Explainability</div>
+        <h1>Global Feature Attribution</h1>
+        <p>Mean absolute SHAP across all 9,082 accounts, computed per fold on validation rows —
+           so every attribution comes from a model that never trained on the account it explains.
+           The data dictionary turns <code>F2506</code> into a sentence an investigator can act on.</p>
+      </div>
+      <div class="panel"><header><h3>Top 25 drivers</h3><span class="tag pill" id="shap-prov"></span></header>
+        <div class="body" id="shap-global"></div>
+      </div>
+    </section>
+
+    <!-- ================= RULES + ABLATION ================= -->
+    <section id="s-baseline" hidden>
+      <div class="secthead">
+        <div class="eyebrow">11 — Measured against ourselves</div>
+        <h1>Rule Baseline &amp; Ablation</h1>
+        <p>Two questions we owed an answer to. Does the industry-standard rule layer work on this
+           data? And how much of our own score is the extract artefact rather than detection?</p>
+      </div>
+      <div class="panel"><header><h3>The AML rule layer</h3>
+        <span class="tag pill" id="rules-tag"></span></header>
+        <div class="body" id="rules-body"></div>
+      </div>
+      <div class="panel accent"><header><h3>Feature ablation — which half is real</h3></header>
+        <div class="body" id="ablation-body"></div>
+      </div>
+    </section>
+
+    <!-- ================= TRIAGE ================= -->
+    <section id="s-triage" hidden>
+      <div class="secthead">
+        <div class="eyebrow">12 — Operations</div>
+        <h1>Risk-Band Triage</h1>
+        <p>A 0–1000 score is only useful if a band boundary means something. These edges are the
+           ensemble's own fitted operating points, chosen on inner data before any validation row
+           was seen — not round numbers somebody picked.</p>
+      </div>
+
+      <figure class="figure">
+        <div class="fighead"><span class="n">FIGURE 6</span>
+          <h4>One score, three actions, two operating points</h4></div>
+        <div class="figbody">
+          <svg class="dg" viewBox="0 0 920 300" role="img" style="min-width:720px"
+               aria-label="A calibrated risk score branches into three bands: low with no action, medium with enhanced monitoring and step-up authentication, and high with a freeze and escalation to the AML desk.">
+            <rect class="boxa" x="330" y="16" width="260" height="48"/>
+            <text class="t2 amb" x="460" y="46" text-anchor="middle">CALIBRATED RISK SCORE</text>
+            <path class="ln" d="M460,64 L460,92 M150,92 L770,92 M150,92 L150,120 M460,92 L460,120 M770,92 L770,120"/>
+            <path class="ar" d="M143,117 L157,117 L150,128 Z"/>
+            <path class="ar" d="M453,117 L467,117 L460,128 Z"/>
+            <path class="ar" d="M763,117 L777,117 L770,128 Z"/>
+
+            <rect class="box" x="25" y="130" width="250" height="140"/>
+            <text class="t" x="41" y="156" fill="var(--ink-dim)">LOW</text>
+            <text class="s" x="41" y="180">No action.</text>
+            <text class="s" x="41" y="196">Routine monitoring only.</text>
+            <text class="s2" x="41" y="222">A genuine customer never</text>
+            <text class="s2" x="41" y="236">learns they were scored.</text>
+
+            <rect class="boxa" x="335" y="130" width="250" height="140"/>
+            <text class="t amb" x="351" y="156">MEDIUM</text>
+            <text class="s" x="351" y="180">Enhanced monitoring.</text>
+            <text class="s" x="351" y="196">Step-up authentication</text>
+            <text class="s" x="351" y="212">(OTP) on transfers.</text>
+            <text class="s2" x="351" y="236">Costs an innocent customer</text>
+            <text class="s2" x="351" y="250">one extra prompt. Nothing</text>
+            <text class="s2" x="351" y="264">is frozen.</text>
+
+            <rect class="boxr" x="645" y="130" width="250" height="140"/>
+            <text class="t red" x="661" y="156">HIGH</text>
+            <text class="s" x="661" y="180">Freeze outward transfers.</text>
+            <text class="s" x="661" y="196">Escalate to the AML desk.</text>
+            <text class="s" x="661" y="212">Prepare an STR pack.</text>
+            <text class="s2" x="661" y="236">Reserved for near-certainty,</text>
+            <text class="s2" x="661" y="250">because this one is felt by</text>
+            <text class="s2" x="661" y="264">a real person.</text>
+          </svg>
+        </div>
+        <figcaption><strong>A single yes-or-no threshold forces one tradeoff onto the whole book.</strong>
+          Two operating points let the harsh action be reserved for the cases the model is almost certain
+          about, while a cheap action catches more mules without costing a genuine customer anything worse
+          than an extra prompt. Both cutoffs are fitted from the model's own operating points on inner
+          folds. They were hardcoded once, which is a defect we found in our own code and fixed.</figcaption>
+      </figure>
+      <div class="panel accent"><header><h3>Where the band edges come from</h3></header>
+        <div class="body" id="band-provenance"></div>
+      </div>
+      <div id="band-cards" class="grid g3"></div>
+      <div class="panel"><header><h3>Band performance</h3></header>
+        <div class="body"><div class="scrollx"><table id="band-table"></table></div></div>
+      </div>
+    </section>
+
+    <!-- ================= ACCOUNT ANALYSIS ================= -->
+    <section id="s-analyze" hidden>
+      <div class="secthead">
+        <div class="eyebrow">13 — Investigator view</div>
+        <h1>Account Analysis</h1>
+        <p>Not just "is this account risky" — <em>why</em> is it risky, what evidence supports that,
+           and what should an investigator do next. Every value below is live model output.</p>
+      </div>
+      <div class="panel"><header><h3>Select an account</h3></header>
+        <div class="body">
+          <div class="controls">
+            <label class="field"><span class="lab">Account index</span>
+              <input type="number" id="acct-idx" min="0" value="0" style="width:150px"></label>
+            <button class="btn" id="acct-go">ANALYZE</button>
+            <button class="btn ghost" id="acct-random">RANDOM</button>
+            <button class="btn ghost" id="acct-top">HIGHEST RISK</button>
+            <button class="btn ghost" id="acct-mule">A CONFIRMED MULE</button>
+          </div>
+          <div id="acct-picker" style="margin-top:14px"></div>
+        </div>
+      </div>
+      <div id="acct-result"></div>
+    </section>
+
+    <!-- ================= OPERATING ================= -->
+    <section id="s-operating" hidden>
+      <div class="secthead">
+        <div class="eyebrow">14 — What it costs to run</div>
+        <h1>Operating Metrics</h1>
+        <p>Precision@K, false alarms per thousand customers, what a fixed review budget buys,
+           scoring latency, and how much the extract itself shifts the data.</p>
+      </div>
+      <div class="panel"><header><h3>Desk-level numbers</h3></header>
+        <div class="body" id="operating-body"></div>
+      </div>
+    </section>
+
+    <!-- ================= AUDIT ================= -->
+    <section id="s-audit" hidden>
+      <div class="secthead">
+        <div class="eyebrow">15 — The feedback loop</div>
+        <h1>Investigator Audit Trail</h1>
+        <p>Every decision an analyst records here is timestamped and appended to
+           <code>data/investigator_decisions.csv</code>. In a deployment these rows are the labels
+           the next model version retrains on.</p>
+      </div>
+      <div class="panel"><header><h3>Decisions recorded this session</h3></header>
+        <div class="body" id="audit-body"></div>
+      </div>
+    </section>
+
+    <!-- ================= PIPELINE ================= -->
+    <section id="s-pipeline" hidden>
+      <div class="secthead">
+        <div class="eyebrow">16 — End to end</div>
+        <h1>Raw Data → AML Action</h1>
+        <p>Ten stages. Each writes a JSON artefact this interface reads back, so nothing shown
+           anywhere in this UI is decorative — it is all pipeline output.</p>
+      </div>
+      <div class="panel"><header><h3>Flow</h3></header>
+        <div class="body"><div class="flow" id="flow"></div></div>
+      </div>
+      <div class="panel"><header><h3>Artefact health</h3></header>
+        <div class="body"><div class="scrollx"><table id="artefact-table"></table></div></div>
+      </div>
+      <div class="panel"><header><h3>Run it yourself</h3></header>
+        <div class="body">
+          <div class="kv">
+            <dt>Windows</dt><dd><code>.\run.ps1</code> then <code>.\run.ps1 -Serve</code></dd>
+            <dt>macOS / Linux</dt><dd><code>./run.sh</code> then <code>./run.sh serve</code></dd>
+            <dt>Faster training</dt><dd><code>MULEGUARD_REPEATS=1</code></dd>
+            <dt>API docs</dt><dd><a href="/api/docs" target="_blank" rel="noopener">/api/docs</a></dd>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

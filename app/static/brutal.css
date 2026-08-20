@@ -1,0 +1,468 @@
+/* ==========================================================================
+   MULEGUARD AI — BRUTALIST COMMAND CENTER
+   Sharp rectangles, heavy rules, high contrast, no decoration that does not
+   carry information. Every border is a boundary between two kinds of fact.
+   No external fonts or assets: this must render on a projector with no network.
+   ========================================================================== */
+
+:root {
+  --bg:        #0b0b0c;
+  --bg-panel:  #121214;
+  --bg-inset:  #17171a;
+  --ink:       #ececec;
+  --ink-dim:   #8b8b90;
+  --ink-faint: #5a5a60;
+  --rule:      #ffffff;
+  --rule-soft: #2e2e33;
+  --amber:     #ffb000;
+  --red:       #ff3b30;
+  --green:     #00e676;
+  --blue:      #4da3ff;
+
+  --mono: ui-monospace, "SF Mono", "Cascadia Mono", "Segoe UI Mono", Menlo,
+          Consolas, "Liberation Mono", monospace;
+  --sans: "Helvetica Neue", Helvetica, Arial, "Segoe UI", system-ui, sans-serif;
+
+  --b:  3px solid var(--rule);
+  --b2: 1px solid var(--rule-soft);
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body {
+  margin: 0; padding: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 14px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---------- Type ------------------------------------------------------- */
+h1, h2, h3, h4 {
+  font-family: var(--sans);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
+  margin: 0;
+}
+h1 { font-size: 30px; line-height: 1; }
+h2 { font-size: 21px; }
+h3 { font-size: 15px; letter-spacing: 0.04em; }
+p  { margin: 0 0 10px; max-width: 78ch; }
+a  { color: var(--amber); text-decoration: underline; text-underline-offset: 3px; }
+code, .mono { font-family: var(--mono); }
+strong { color: #fff; font-weight: 700; }
+
+.dim   { color: var(--ink-dim); }
+.faint { color: var(--ink-faint); }
+.tiny  { font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; }
+.num   { font-variant-numeric: tabular-nums; }
+
+/* ---------- Shell ------------------------------------------------------ */
+.masthead {
+  border-bottom: var(--b);
+  padding: 14px 20px;
+  display: flex; align-items: center; gap: 20px; flex-wrap: wrap;
+  background: #000;
+  position: sticky; top: 0; z-index: 50;
+}
+.brand { display: flex; align-items: baseline; gap: 12px; }
+.brand .mark {
+  background: var(--amber); color: #000; padding: 4px 10px;
+  font-family: var(--sans); font-weight: 900; font-size: 22px;
+  letter-spacing: -0.04em;
+}
+.brand .sub { color: var(--ink-dim); font-size: 11px; letter-spacing: 0.14em;
+              text-transform: uppercase; }
+
+.statusbar { margin-left: auto; display: flex; gap: 8px; align-items: center;
+             flex-wrap: wrap; }
+.pill {
+  border: 2px solid var(--rule); padding: 3px 9px;
+  font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase;
+  font-weight: 700; white-space: nowrap;
+}
+.pill.ok      { border-color: var(--green); color: var(--green); }
+.pill.warn    { border-color: var(--amber); color: var(--amber); }
+.pill.bad     { border-color: var(--red);   color: var(--red); }
+.pill.solid   { background: var(--amber); color: #000; border-color: var(--amber); }
+
+.layout { display: grid; grid-template-columns: 230px minmax(0, 1fr); }
+
+nav.rail {
+  border-right: var(--b);
+  padding: 0; position: sticky; top: 63px; align-self: start;
+  height: calc(100vh - 63px); overflow-y: auto;
+}
+nav.rail button {
+  display: block; width: 100%; text-align: left;
+  background: none; border: 0; border-bottom: var(--b2);
+  color: var(--ink-dim); font-family: var(--mono); font-size: 12px;
+  letter-spacing: 0.05em; text-transform: uppercase;
+  padding: 11px 14px; cursor: pointer;
+}
+nav.rail button:hover { background: var(--bg-inset); color: var(--ink); }
+nav.rail button[aria-current="true"] {
+  background: var(--amber); color: #000; font-weight: 700;
+}
+nav.rail button .idx { color: var(--ink-faint); margin-right: 8px; }
+nav.rail button[aria-current="true"] .idx { color: #000; }
+nav.rail .railgroup {
+  padding: 12px 14px 6px; font-size: 10px; letter-spacing: 0.16em;
+  color: var(--ink-faint); text-transform: uppercase; border-bottom: var(--b2);
+}
+
+main { padding: 22px; min-width: 0; }
+section[hidden] { display: none; }
+
+.secthead { border-bottom: var(--b); padding-bottom: 12px; margin-bottom: 20px; }
+.secthead .eyebrow { color: var(--amber); font-size: 11px; letter-spacing: 0.18em;
+                     text-transform: uppercase; font-weight: 700; }
+.secthead p { color: var(--ink-dim); margin-top: 8px; }
+
+/* ---------- Panels ----------------------------------------------------- */
+.panel { border: var(--b); background: var(--bg-panel); margin-bottom: 18px; }
+.panel > header {
+  border-bottom: var(--b); padding: 9px 13px; background: #000;
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+}
+.panel > header h3 { color: #fff; }
+.panel > header .tag { margin-left: auto; }
+.panel > .body { padding: 15px; }
+.panel.danger  { border-color: var(--red); }
+.panel.danger  > header { background: var(--red); color: #000; }
+.panel.danger  > header h3 { color: #000; }
+.panel.accent  { border-color: var(--amber); }
+.panel.accent  > header { background: var(--amber); }
+.panel.accent  > header h3 { color: #000; }
+
+.grid  { display: grid; gap: 14px; }
+.g2 { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+.g3 { grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); }
+.g4 { grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
+
+/* ---------- Stat blocks ------------------------------------------------ */
+.stat { border: var(--b); padding: 13px; background: var(--bg-panel); }
+.stat .k { font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase;
+           color: var(--ink-dim); }
+.stat .v { font-family: var(--sans); font-weight: 900; font-size: 32px;
+           line-height: 1.05; margin-top: 6px; font-variant-numeric: tabular-nums; }
+.stat .u { font-size: 11px; color: var(--ink-faint); margin-top: 4px; }
+.stat.amber .v { color: var(--amber); }
+.stat.red   .v { color: var(--red); }
+.stat.green .v { color: var(--green); }
+
+/* ---------- Tables ----------------------------------------------------- */
+table { border-collapse: collapse; width: 100%; font-size: 12.5px; }
+th, td { border: var(--b2); padding: 7px 10px; text-align: left; vertical-align: top; }
+th { background: #000; color: var(--ink-dim); font-weight: 700; font-size: 10px;
+     letter-spacing: 0.12em; text-transform: uppercase; white-space: nowrap; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+tbody tr:hover { background: var(--bg-inset); }
+.scrollx { overflow-x: auto; border: var(--b2); }
+.scrollx table { border: 0; }
+
+/* ---------- Bars ------------------------------------------------------- */
+/* inline-block, or the span stays inline: height is ignored and the label
+   after it wraps onto its own line inside the table cell. */
+.bar { display: inline-block; vertical-align: middle; margin-right: 8px;
+       height: 14px; background: var(--bg-inset); border: 1px solid var(--rule-soft);
+       position: relative; width: 60px; min-width: 60px; }
+.bar > span { display: block; height: 100%; background: var(--amber); }
+.bar.red   > span { background: var(--red); }
+.bar.green > span { background: var(--green); }
+.bar.blue  > span { background: var(--blue); }
+
+.shaprow { display: grid; grid-template-columns: 1fr 90px; gap: 10px;
+           align-items: center; }
+.shapbar { height: 16px; background: var(--bg-inset);
+           border: 1px solid var(--rule-soft); position: relative; }
+.shapbar .neg, .shapbar .pos { position: absolute; top: 0; height: 100%; }
+.shapbar .mid { position: absolute; top: -2px; bottom: -2px; width: 1px;
+                background: var(--ink-faint); left: 50%; }
+.shapbar .pos { background: var(--red); left: 50%; }
+.shapbar .neg { background: var(--blue); right: 50%; }
+
+/* ---------- Bands ------------------------------------------------------ */
+.band { display: inline-block; padding: 2px 9px; font-weight: 800; font-size: 11px;
+        letter-spacing: 0.12em; border: 2px solid; }
+.band.HIGH   { background: var(--red);   color: #000; border-color: var(--red); }
+.band.MEDIUM { background: var(--amber); color: #000; border-color: var(--amber); }
+.band.LOW    { background: none; color: var(--ink-dim); border-color: var(--rule-soft); }
+/* A red HIGH pill sitting on a red panel header disappears. Invert it there so
+   the band stays legible whatever panel it lands in. */
+.panel.danger > header .band,
+.panel.accent > header .band { background: #000; color: #fff; border-color: #000; }
+.panel.danger > header .band.HIGH   { color: var(--red); }
+.panel.danger > header .band.MEDIUM,
+.panel.accent > header .band.MEDIUM { color: var(--amber); }
+
+/* ---------- Controls --------------------------------------------------- */
+button.btn, .btn {
+  background: var(--amber); color: #000; border: 3px solid var(--amber);
+  font-family: var(--mono); font-weight: 800; font-size: 12px;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  padding: 9px 16px; cursor: pointer;
+}
+button.btn:hover { background: #000; color: var(--amber); }
+button.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+button.ghost { background: none; color: var(--ink); border-color: var(--rule); }
+button.ghost:hover { background: var(--ink); color: #000; }
+button.ghost[aria-pressed="true"] { background: var(--amber); border-color: var(--amber); color: #000; }
+
+input[type="number"], input[type="text"], select, textarea {
+  background: #000; color: var(--ink); border: 3px solid var(--rule);
+  font-family: var(--mono); font-size: 13px; padding: 8px 10px;
+}
+input:focus, select:focus, textarea:focus { outline: 3px solid var(--amber);
+                                            outline-offset: 1px; }
+label.field { display: block; }
+label.field .lab { font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase;
+                   color: var(--ink-dim); display: block; margin-bottom: 5px; }
+
+.controls { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
+
+/* ---------- Callouts --------------------------------------------------- */
+.callout { border-left: 6px solid var(--amber); background: var(--bg-inset);
+           padding: 11px 14px; margin: 12px 0; }
+.callout.red   { border-left-color: var(--red); }
+.callout.green { border-left-color: var(--green); }
+.callout .tiny { color: var(--amber); font-weight: 700; }
+.callout.red   .tiny { color: var(--red); }
+.callout.green .tiny { color: var(--green); }
+
+/* ---------- Pipeline flow --------------------------------------------- */
+.flow { display: flex; flex-wrap: wrap; gap: 0; align-items: stretch; }
+.flow .node {
+  border: var(--b); padding: 11px 13px; min-width: 148px; flex: 1 1 148px;
+  background: var(--bg-panel); margin-right: -3px; margin-bottom: -3px;
+}
+.flow .node .n { color: var(--amber); font-size: 10px; letter-spacing: 0.14em;
+                 font-weight: 800; }
+.flow .node .t { font-family: var(--sans); font-weight: 800; font-size: 13px;
+                 text-transform: uppercase; margin: 4px 0; }
+.flow .node .d { font-size: 11px; color: var(--ink-dim); line-height: 1.35; }
+.flow .node.skip { border-style: dashed; opacity: 0.62; }
+
+/* ---------- Judge mode ------------------------------------------------- */
+.judge { border: var(--b); border-color: var(--amber); background: var(--bg-panel); }
+.judge > header { background: var(--amber); color: #000; padding: 12px 16px;
+                  display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.judge > header h2 { color: #000; }
+.judge .stepbody { padding: 24px; min-height: 340px; }
+.judge .stepno { font-family: var(--sans); font-weight: 900; font-size: 62px;
+                 line-height: 0.85; color: var(--rule-soft); }
+.judge .steptitle { font-family: var(--sans); font-weight: 900; font-size: 27px;
+                    text-transform: uppercase; letter-spacing: -0.02em; margin: 10px 0 14px; }
+.judge .steplede { font-size: 15px; max-width: 66ch; line-height: 1.6; }
+.judge footer { border-top: var(--b); padding: 12px 16px; display: flex;
+                gap: 12px; align-items: center; flex-wrap: wrap; }
+.progress { flex: 1; display: flex; gap: 3px; min-width: 160px; }
+.progress i { flex: 1; height: 8px; background: var(--rule-soft); }
+.progress i.done { background: var(--amber); }
+
+/* ---------- States ----------------------------------------------------- */
+.loading { color: var(--amber); padding: 14px; border: 3px dashed var(--rule-soft); }
+.loading::after { content: "_"; animation: blink 1s steps(2) infinite; }
+@keyframes blink { 0%, 50% { opacity: 1; } 50.01%, 100% { opacity: 0; } }
+
+.errorbox { border: 3px solid var(--red); background: #1a0d0d; padding: 14px; }
+.errorbox h4 { font-family: var(--sans); color: var(--red); text-transform: uppercase;
+               margin-bottom: 6px; }
+.errorbox .fix { margin-top: 8px; padding: 8px 10px; background: #000;
+                 border: 1px solid var(--rule-soft); font-size: 12px; }
+
+.empty { color: var(--ink-faint); padding: 18px; text-align: center;
+         border: 3px dashed var(--rule-soft); }
+
+/* ---------- Misc ------------------------------------------------------- */
+.kv { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px;
+      font-size: 12.5px; }
+.kv dt { color: var(--ink-dim); }
+.kv dd { margin: 0; }
+ul.tight { margin: 8px 0; padding-left: 20px; }
+ul.tight li { margin-bottom: 5px; }
+hr.rule { border: 0; border-top: var(--b); margin: 18px 0; }
+
+@media (max-width: 900px) {
+  .layout { grid-template-columns: 1fr; }
+  nav.rail { position: static; height: auto; border-right: 0; border-bottom: var(--b);
+             display: flex; flex-wrap: wrap; }
+  nav.rail button { width: auto; flex: 1 1 auto; border-right: var(--b2); }
+  nav.rail .railgroup { display: none; }
+}
+
+
+/* ---------- upload ----------------------------------------------------- */
+.dropzone{
+  border:3px dashed var(--rule-soft); background:var(--bg-inset);
+  padding:clamp(26px,5vw,50px) 20px; text-align:center; cursor:pointer;
+  transition:none;
+}
+.dropzone:hover, .dropzone.over{ border-color:var(--amber); background:var(--amber-dim,#241a00); }
+.dropzone .dz-big{
+  font-family:var(--sans); font-weight:900; font-size:clamp(17px,2.4vw,24px);
+  letter-spacing:-.02em; color:var(--ink); margin-bottom:8px;
+}
+.dropzone[data-ready="1"]{ border-style:solid; border-color:var(--green); }
+.upbar{ height:16px; background:var(--bg-inset); border:2px solid var(--rule); }
+.upbar>span{ display:block; height:100%; background:var(--amber); }
+.uplog{
+  margin:10px 0 0; padding:11px; background:#000; border:1px solid var(--rule-soft);
+  font-family:var(--mono); font-size:11px; line-height:1.5; color:var(--ink-dim);
+  max-height:240px; overflow:auto; white-space:pre-wrap; word-break:break-word;
+}
+
+/* ---------- hero / landing --------------------------------------------- */
+.hero {
+  display: grid; gap: clamp(20px, 3vw, 34px);
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
+  align-items: start;
+  border: var(--b); background: var(--bg-panel);
+  padding: clamp(22px, 3.6vw, 44px);
+}
+@media (max-width: 940px) { .hero { grid-template-columns: 1fr; } }
+
+.hero-eyebrow {
+  font-family: var(--mono); font-size: 11px; letter-spacing: .16em;
+  text-transform: uppercase; color: var(--amber); margin-bottom: 18px;
+}
+.hero-title {
+  font-family: var(--sans); font-weight: 800; text-transform: none;
+  font-size: clamp(30px, 4.6vw, 56px); line-height: 1.02;
+  letter-spacing: -.03em; margin: 0 0 18px; text-wrap: balance;
+}
+.hero-title .hl { color: var(--amber); }
+.hero-lede {
+  font-size: clamp(15px, 1.5vw, 18px); line-height: 1.55;
+  color: var(--ink-dim); max-width: 62ch; margin-bottom: 24px;
+}
+.hero-cta { display: flex; flex-wrap: wrap; gap: 10px; }
+.hero-btn { padding: 12px 18px; font-size: 12.5px; }
+
+/* terminal-style status readout */
+.readout { border: 3px solid var(--rule-soft); background: #000; }
+.readout-head {
+  border-bottom: 1px solid var(--rule-soft); padding: 9px 12px;
+  font-family: var(--mono); font-size: 10.5px; letter-spacing: .16em;
+  text-transform: uppercase; color: var(--ink-dim);
+  display: flex; align-items: center; gap: 9px;
+}
+.readout-head .dot {
+  width: 8px; height: 8px; background: var(--green); flex: none;
+  animation: pulse 2.2s steps(2) infinite;
+}
+@media (prefers-reduced-motion: reduce) { .readout-head .dot { animation: none; } }
+@keyframes pulse { 0%, 60% { opacity: 1; } 60.01%, 100% { opacity: .25; } }
+.readout-body { padding: 12px; font-family: var(--mono); font-size: 12px; }
+.readout-row {
+  display: flex; justify-content: space-between; gap: 12px;
+  padding: 5px 0; border-bottom: 1px solid #16161a;
+}
+.readout-row:last-child { border-bottom: 0; }
+.readout-row .k { color: var(--ink-faint); }
+.readout-row .v { color: var(--ink); font-variant-numeric: tabular-nums; }
+.readout-row .v.red { color: var(--red); font-weight: 700; }
+.readout-row .v.green { color: var(--green); font-weight: 700; }
+.readout-row .v.amber { color: var(--amber); font-weight: 700; }
+
+/* three big routes */
+.routes {
+  display: grid; gap: 2px; background: var(--rule);
+  border: var(--b); margin-top: 22px;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+.route {
+  background: var(--bg-panel); padding: clamp(16px, 2.2vw, 24px);
+  text-align: left; border: 0; cursor: pointer; color: var(--ink);
+  font-family: inherit; display: block; width: 100%;
+}
+.route:hover { background: var(--bg-inset); }
+.route .n {
+  font-family: var(--mono); font-size: 10.5px; letter-spacing: .16em;
+  text-transform: uppercase; color: var(--amber);
+}
+.route h3 {
+  font-family: var(--sans); font-weight: 800; font-size: clamp(17px, 2vw, 21px);
+  text-transform: none; letter-spacing: -.015em; margin: 8px 0 8px; color: #fff;
+}
+.route p { font-size: 13.5px; line-height: 1.5; color: var(--ink-dim); margin: 0; }
+.route .go {
+  font-family: var(--mono); font-size: 11px; letter-spacing: .12em;
+  text-transform: uppercase; color: var(--amber); margin-top: 12px; display: block;
+}
+
+/* ---------- Blocks -----------------------------------------------------
+   Used by the hero trust panel and the method section. Both `.block` and
+   `.small` were referenced by app.js before they existed here, so those
+   panels were rendering unstyled: bare divs with no border and body-size
+   text inside a grid that expected cards.
+------------------------------------------------------------------------ */
+.block {
+  border: var(--b); background: var(--bg-inset); padding: 13px;
+}
+.block h3 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em; }
+.small { font-size: 12px; line-height: 1.5; color: var(--ink-dim); }
+.block code, .small code { font-size: 11px; }
+
+/* ---------- Fixed-count grids ------------------------------------------
+   .g2/.g3/.g4 are auto-fit, so the column count follows the viewport. That
+   is right for stat strips, where any number per row looks deliberate. It is
+   wrong for a set of N cards meant to read as a block: at this content width
+   auto-fit packs 4 cards as 3+1 and 6 cards as 5+1, orphaning the last one.
+   These cap the count so the rows stay even, and still collapse to one
+   column on a narrow screen.
+------------------------------------------------------------------------ */
+.g2f { grid-template-columns: repeat(auto-fit, minmax(min(100%, 430px), 1fr)); }
+.g3f { grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); }
+
+/* ---------- Diagrams ---------------------------------------------------
+   Inline SVG, no libraries, no external assets. Each figure scrolls
+   horizontally inside its own box rather than shrinking its own type below
+   readable size, which matters when this is projected in a room.
+------------------------------------------------------------------------ */
+.figure { border: var(--b); background: var(--bg-panel); margin: 20px 0; }
+.figure > .fighead {
+  border-bottom: var(--b2); padding: 9px 13px; background: #000;
+  display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+}
+.figure > .fighead .n { color: var(--amber); font-size: 10px; font-weight: 800;
+                        letter-spacing: 0.16em; }
+.figure > .fighead h4 { font-family: var(--sans); font-weight: 800; font-size: 13px;
+                        text-transform: uppercase; letter-spacing: 0.04em; color: #fff; }
+.figure > .figbody { padding: 14px; overflow-x: auto; }
+/* Cap at roughly the natural drawing width. Stretching a 920-unit diagram
+   across a 1350px panel inflates the type past the surrounding text and
+   makes the tall figures needlessly expensive to paint. */
+.figure svg { display: block; width: 100%; max-width: 980px; height: auto;
+              margin: 0 auto; }
+.figure figcaption {
+  border-top: var(--b2); padding: 11px 13px; font-size: 12px; line-height: 1.55;
+  color: var(--ink-dim);
+}
+.figure figcaption strong { color: var(--ink); }
+
+/* Shared diagram type scale. Kept here so every figure speaks with one voice. */
+.dg text { font-family: var(--mono); fill: var(--ink); }
+.dg .t   { font-size: 13px; font-weight: 700; letter-spacing: 0.03em; }
+.dg .t2  { font-size: 11.5px; font-weight: 700; }
+.dg .s   { font-size: 10px; fill: var(--ink-dim); }
+.dg .s2  { font-size: 9px;  fill: var(--ink-faint); }
+.dg .n   { font-size: 9.5px; font-weight: 800; letter-spacing: 0.14em; fill: var(--amber); }
+.dg .box { fill: var(--bg-inset); stroke: var(--rule); stroke-width: 2.5; }
+.dg .boxa{ fill: var(--bg-inset); stroke: var(--amber); stroke-width: 2.5; }
+.dg .boxr{ fill: var(--bg-inset); stroke: var(--red);   stroke-width: 2.5; }
+.dg .boxg{ fill: var(--bg-inset); stroke: var(--green); stroke-width: 2.5; }
+.dg .dash{ fill: none; stroke: var(--ink-faint); stroke-width: 2; stroke-dasharray: 6 5; }
+.dg .ln  { fill: none; stroke: var(--rule); stroke-width: 2.5; }
+.dg .lna { fill: none; stroke: var(--amber); stroke-width: 2.5; }
+.dg .lnr { fill: none; stroke: var(--red); stroke-width: 2.5; stroke-dasharray: 7 5; }
+.dg .ar  { fill: var(--rule); }
+.dg .ara { fill: var(--amber); }
+.dg .arr { fill: var(--red); }
+.dg .amb { fill: var(--amber); }
+.dg .grn { fill: var(--green); }
+.dg .red { fill: var(--red); }
+.dg .blk { fill: #000; }

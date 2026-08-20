@@ -22,6 +22,7 @@ import json
 import pandas as pd
 
 import config as C
+import schema as S
 from utils import load_frame, log, save_json
 
 
@@ -87,7 +88,8 @@ def main() -> None:
             if 0 <= dst < n and dst != src:
                 edges.append((src, dst))
 
-    seeds = set(df.index[df[C.TARGET_COL] == 1].tolist())
+    target = S.bind_target(df, C)
+    seeds = set(df.index[df[target] == 1].tolist())
     log(f"Graph: {n} nodes, {len(edges):,} edges, {len(seeds)} seeds")
 
     scores = propagate(edges, seeds, n)

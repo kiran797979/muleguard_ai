@@ -1,0 +1,48 @@
+{
+  "schema_version": "1.0",
+  "field_mapping": {
+    "alert_id": "Unique alert reference. Deterministic, so re-running does not duplicate cases.",
+    "alert_datetime_utc": "Alert generation time, ISO 8601 UTC.",
+    "entity_type": "Always ACCOUNT. This model scores accounts, not customers or transactions.",
+    "entity_ref": "Account reference as supplied. Row index where the source is anonymised.",
+    "risk_score": "Integer 0-1000. Calibrated probability x 1000.",
+    "risk_probability": "Calibrated probability that the account is a mule, 0-1.",
+    "priority": "1 = highest. Derived from the band, for queue ordering.",
+    "risk_band": "LOW / MEDIUM / HIGH. Edges are fitted operating points, not fixed constants.",
+    "scenario_codes": "Typology codes that fired. OUR taxonomy, not a regulator code list.",
+    "scenario_names": "Plain-language typology names for the codes above.",
+    "scenario_detail": "Per-code MEASURED lift and precision on this dataset, so a receiving system can weight scenarios rather than treating them as equally meaningful. Seven of ours score at or below the base rate and say so.",
+    "recommended_action": "Suggested disposition. Advisory only; a human decides.",
+    "reasons": "Ranked feature attributions with direction and magnitude.",
+    "model_id / model_version": "Provenance, for model risk management and audit.",
+    "score_provenance": "Whether the score is out-of-fold or from the deployed model.",
+    "data_integrity_warning": "Present when the source dataset failed its integrity audit."
+  },
+  "typology_taxonomy": {
+    "R01": "Pass-through conduit",
+    "R02": "Turnover disproportionate to balance",
+    "R03": "Sudden account activation",
+    "R04": "Cash-out dominance",
+    "R05": "Single payment rail concentration",
+    "R06": "Structuring by ticket size",
+    "R07": "Nocturnal activity pattern",
+    "R08": "Spike-and-drain balance profile",
+    "R09": "Customer profile mismatch",
+    "R10": "New account rapid turnover",
+    "R11": "Pure conduit, net flow near zero",
+    "R12": "Conduit on a single rail",
+    "ML": "Model-derived behavioural risk (no single rule fired)"
+  },
+  "compatibility_statement": "Vendor-neutral export. NOT certified against any named EFRMS or AML product; no such testing has been performed. Integration is a field mapping exercise against the schema documented in field_mapping.",
+  "formats_provided": [
+    "JSON (API and file)",
+    "CSV (batch exchange)",
+    "OpenAPI 3 specification at /api/openapi.json"
+  ],
+  "what_would_be_needed_for_a_named_platform": [
+    "That platform's integration specification.",
+    "A scenario catalogue to map scenario_codes onto.",
+    "An agreed entity key, since this dataset is anonymised.",
+    "A test environment to validate ingestion against."
+  ]
+}

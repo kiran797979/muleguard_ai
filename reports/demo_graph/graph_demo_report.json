@@ -1,0 +1,78 @@
+{
+  "WARNING": "SYNTHETIC CAPABILITY DEMONSTRATION. Not a result, not a benchmark, and not evidence about the hackathon dataset. The rings below were planted by this script and then found by this script. Its only purpose is to show that the Stage 6 code path executes when a counterparty ledger exists.",
+  "why_this_exists": "reports/04_graph_report.json records that the real dataset has no counterparty column, so Stage 6 disables itself. This demonstrates the disabled code.",
+  "uses_production_code": "src/04_graph.py:propagate \u2014 imported, not copied",
+  "hop_decay": {
+    "1": 0.85,
+    "2": 0.7,
+    "3": 0.55
+  },
+  "max_hops": 3,
+  "synthetic_ledger": {
+    "accounts": 2000,
+    "transfers": 4320,
+    "planted_rings": 8,
+    "ring_members": 52,
+    "confirmed_per_ring": 2
+  },
+  "result": {
+    "unknown_ring_members": 36,
+    "by_hop": [
+      {
+        "hop": 1,
+        "proximity_score": 0.85,
+        "accounts_at_this_hop": 93,
+        "ring_members_recovered": 33,
+        "innocent_accounts": 60,
+        "precision": 0.3548
+      },
+      {
+        "hop": 2,
+        "proximity_score": 0.7,
+        "accounts_at_this_hop": 349,
+        "ring_members_recovered": 3,
+        "innocent_accounts": 346,
+        "precision": 0.0086
+      },
+      {
+        "hop": 3,
+        "proximity_score": 0.55,
+        "accounts_at_this_hop": 780,
+        "ring_members_recovered": 0,
+        "innocent_accounts": 780,
+        "precision": 0.0
+      }
+    ],
+    "cumulative": [
+      {
+        "stop_after_hop": 1,
+        "queue_size": 93,
+        "ring_members_recovered": 33,
+        "recall_of_unknown": 0.9167,
+        "precision": 0.3548,
+        "alerts_per_member_found": 2.8
+      },
+      {
+        "stop_after_hop": 2,
+        "queue_size": 442,
+        "ring_members_recovered": 36,
+        "recall_of_unknown": 1.0,
+        "precision": 0.0814,
+        "alerts_per_member_found": 12.3
+      },
+      {
+        "stop_after_hop": 3,
+        "queue_size": 1222,
+        "ring_members_recovered": 36,
+        "recall_of_unknown": 1.0,
+        "precision": 0.0295,
+        "alerts_per_member_found": 33.9
+      }
+    ],
+    "all_hops_queue_size": 1222,
+    "all_hops_recall": 1.0,
+    "all_hops_precision": 0.0295
+  },
+  "how_this_score_is_consumed": "As a 0.15 blend weight on the calibrated probability in 05_score_explain.py, never as a standalone alert. The per-hop breakdown matters because reach and noise diverge sharply with distance, and a single 'flagged / not flagged' number hides that.",
+  "interpretation": "Stopping after one hop puts 93 accounts in the queue and recovers 33 of 36 unknown ring members, at 35% precision. Letting it run to hop 3 reaches 100% recall but inflates the queue to 1222 accounts at 3% precision, roughly 33.9 alerts for every member found. That collapse is the honest argument against untuned propagation: on a graph with ordinary background traffic, three hops reaches most of the bank. It is also why the pipeline consumes this as a 0.15 blend weight rather than as an alert, and why a deployment would cap it at one or two hops and tune the decay against its own transaction density."
+}

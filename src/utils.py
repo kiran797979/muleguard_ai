@@ -24,15 +24,69 @@ def die(msg: str, code: int = 1) -> None:
 
 
 def load_raw(csv_path: Path) -> pd.DataFrame:
-    """Load the raw dataset, failing loudly with guidance if it's missing."""
+    """Load the raw dataset in whatever format it arrived in.
+
+    This used to be a bare `pd.read_csv`, which is fine for the hackathon file
+    and wrong for a dataset handed over on the day. Two failures showed up in
+    testing and both are the sort you cannot afford live:
+
+      * an .xlsx crashed with a raw pandas traceback;
+      * a semicolon-delimited CSV loaded as ONE column and then failed several
+        stages later complaining it could not find a target, which sends you
+        hunting in completely the wrong place.
+
+    So: Excel and parquet are read natively, the delimiter is sniffed rather
+    than assumed, and a frame that arrives with a single column is treated as a
+    parsing failure and reported as one.
+    """
     if not csv_path.exists():
         die(
             f"Dataset not found at {csv_path}\n"
-            f"       Place the hackathon file there as 'DataSet.csv'.\n"
-            f"       Expected shape ~ (9082 rows, 3924 feature cols + target)."
+            f"       Point at it with MULEGUARD_DATA=<path>, or place it in data/.\n"
+            f"       Accepted: .csv .tsv .txt .xlsx .xls .parquet"
         )
+
+    suffix = csv_path.suffix.lower()
     log(f"Loading {csv_path.name} ...")
-    df = pd.read_csv(csv_path, low_memory=False)
+
+    if suffix in {".xlsx", ".xls", ".xlsm"}:
+        try:
+            df = pd.read_excel(csv_path, sheet_name=0)
+        except Exception as exc:  # noqa: BLE001
+            die(f"Could not read {csv_path.name} as Excel: {exc}\n"
+                f"       If openpyxl is missing: pip install openpyxl")
+            raise
+    elif suffix == ".parquet":
+        df = pd.read_parquet(csv_path)
+    else:
+        # Sniff the delimiter. engine="python" with sep=None does this properly;
+        # if it fails we fall back to a plain comma read rather than dying.
+        try:
+            df = pd.read_csv(csv_path, sep=None, engine="python",
+                             nrows=5000)  # sniff on a sample, it is slow
+            sep = ","
+            if df.shape[1] > 1:
+                # Re-read the whole file fast, using the delimiter that worked.
+                for cand in (",", ";", "\t", "|"):
+                    probe = pd.read_csv(csv_path, sep=cand, nrows=5)
+                    if probe.shape[1] == df.shape[1]:
+                        sep = cand
+                        break
+            df = pd.read_csv(csv_path, sep=sep, low_memory=False)
+            if sep != ",":
+                log(f"Detected '{sep}' as the column separator.")
+        except Exception:  # noqa: BLE001
+            df = pd.read_csv(csv_path, low_memory=False)
+
+    if df.shape[1] <= 1:
+        die(
+            f"{csv_path.name} parsed into only {df.shape[1]} column(s), which "
+            f"almost always means the delimiter was not recognised.\n"
+            f"       First column name looks like: {list(df.columns)[:1]}\n"
+            f"       Re-save it as a comma-separated CSV, or convert it to "
+            f".xlsx and pass that instead."
+        )
+
     log(f"Loaded shape: {df.shape[0]:,} rows x {df.shape[1]:,} cols")
     return df
 
