@@ -12,6 +12,10 @@ cross-validation metrics — not design targets.
 > **Runs on Windows, macOS, and Linux** from one source tree. `pathlib`
 > throughout, UTF-8 forced on all I/O, no shell calls, no hardcoded paths.
 
+> **👩‍⚖️ Presenting to judges?** Jump to **[§12 — Live demo walkthrough](#12--live-demo-walkthrough-for-judges)**
+> for a rehearsed, minute-by-minute script (setup, run, and the exact commands
+> that showcase the leak-free honesty story).
+
 ---
 
 ## ⚠️ Read this first
@@ -370,7 +374,11 @@ this as a **0.15 blend weight** on the risk score rather than as an alert.
 
 ## 8. Pipeline stages
 
-| Stage | Script | Purpose |
+Run by `src/pipeline.py`, which executes each stage in order and prints the final
+summary. `src/config.py` is the single source of truth for every path, threshold,
+and hyper-parameter.
+
+| Stage | Script | What it does |
 |---|---|---|
 | 0 | `06_integrity.py` | **Dataset integrity audit.** Three falsification tests; writes `reports/00_INTEGRITY.md`. Run and read first. |
 | 1 | `01_clean.py` | Semantic leak removal, categorical encoding, activity-aware imputation, extract hardening, separation audit |

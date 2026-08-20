@@ -40,6 +40,10 @@ seaborn>=0.13
 # --- Utilities ---
 joblib>=1.3
 tqdm>=4.66
+pyarrow>=14.0        # fast parquet for intermediate artefacts (falls back to CSV if absent)
+
+# --- Testing (dev) ---
+pytest>=8.0
 
 # --- Web layer (API + brutalist command-center UI) ---
 # Serves the trained model and every pipeline report at http://127.0.0.1:8000.

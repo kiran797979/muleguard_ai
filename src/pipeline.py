@@ -85,8 +85,10 @@ def print_summary() -> None:
         log("No metrics file found; did Stage 4/5 run?")
         return
     m = json.loads(mpath.read_text(encoding="utf-8"))
-    e = m["ensemble_precision_first"]
-    hr = m["ensemble_high_recall"]
+    rank = m["headline_ranking"]
+    rci = m["headline_ranking_ci"]
+    op = m["honest_operating_point"]
+    ceil = m["optimistic_ceiling"]
 
     def ms(block: dict, key: str) -> str:
         if key not in block:

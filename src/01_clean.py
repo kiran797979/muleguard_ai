@@ -558,6 +558,10 @@ def main() -> None:
     save_frame(df, C.CLEAN_PARQUET)
     save_json(report, C.REPORTS_DIR / "01_clean_report.json")
 
+    # Persist the fitted transform for the inference path (src/score_new.py).
+    pre.save(PREPROCESSOR_PATH)
+    log(f"Saved fitted preprocessor -> {PREPROCESSOR_PATH}")
+
 
 if __name__ == "__main__":
     main()

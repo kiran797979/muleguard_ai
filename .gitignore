@@ -5,6 +5,7 @@
 .venv-win/
 __pycache__/
 *.pyc
+.claude/
 
 # Data — never commit the dataset or derived artefacts
 data/*.csv
