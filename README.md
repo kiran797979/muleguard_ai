@@ -1,86 +1,61 @@
 # MuleGuard AI
 
-**Money-mule account detection — precision-first, leak-hardened, and honest
-about what its own benchmark can prove.**
+**Money-mule detection, end to end: a transaction ledger goes in, a ranked
+investigator queue with reasons and an activity window comes out.**
 
-A reproducible ML pipeline for the PSB Cybersecurity, Fraud & AI Hackathon 2026
-(Bank of India × IIT Hyderabad). It detects mule accounts in an extremely
-imbalanced dataset (**81 mules in 9,082 accounts = 0.892%**), explains every
-alert in named banking variables, and reports measured nested cross-validation
-metrics — not design targets.
+Built for the PSB Cybersecurity, Fraud & AI Hackathon 2026 (Bank of India × IIT
+Hyderabad). Four detectors that fail in different places run in parallel, and a
+fitted model — not weights we chose — decides what each is worth.
+
+### What it scores
+
+Measured on **SAML-D**, a public AML dataset we did not create and cannot tune
+against. 493,833 accounts, model fitted on a training split, scored on accounts
+it has never seen:
+
+| Held out: 148,150 accounts, base rate 0.461% | |
+|---|---|
+| **AUPRC** | **0.421 — 91× the base rate** |
+| **Precision, top 50 reviewed** | **70% — 152× lift** |
+| Recall, top 1,000 reviewed | 61.4% |
+| AUROC | 0.985 |
+
+Remove the network layer and AUPRC falls to **0.325**. That is an ablation, not
+an assertion — see [§11](#11-one-system-and-what-it-scores-end-to-end).
+
+On the supplied hackathon file, which is account-level and has no transactions,
+the behavioural half runs alone: **precision 0.989**, a 49-account freeze band
+that is **100% mules**, and **91% of all mules** caught by reviewing 2.6% of the
+book. Read those alongside [§6](#6-what-the-benchmark-can-and-cannot-prove).
+
+### What makes it a system rather than a script
+
+- **It reads the schema itself.** Target, identifiers, leak columns and
+  assembly artefacts are all inferred from structure. No column name is
+  hardcoded anywhere, and where the data cannot answer, it stops rather than
+  guesses.
+- **It says when it cannot help.** The graph stage disables itself without
+  counterparty data. The ring detector declines groups it cannot separate. Both
+  publish the reason.
+- **It audits itself.** Feature ablation, a rule layer measured against the base
+  rate, label-noise detection, and a drift policy with a written condition for
+  halting automated freezing.
+- **Every number here is read from a report file**, not typed into a table.
 
 > **Runs on Windows, macOS, and Linux** from one source tree. `pathlib`
 > throughout, UTF-8 forced on all I/O, no shell calls, no hardcoded paths.
 
-> **Presenting to judges?** Start at **[§1 — Quick start](#1-quick-start)** to get
-> it running, then **[§4 — The command center](#4-the-command-center)** for the
-> live walkthrough, and
-> **[§5 — What the pipeline measures about itself](#5-what-the-pipeline-measures-about-itself)**
-> for the integrity story.
+> **Presenting to judges?** **[§1 — Quick start](#1-quick-start)** to get it
+> running, **[§4 — The command center](#4-the-command-center)** for the live
+> walkthrough, **[§11](#11-one-system-and-what-it-scores-end-to-end)** for the
+> end-to-end result, and **[§6](#6-what-the-benchmark-can-and-cannot-prove)**
+> for the data-integrity work.
 
 > **What is not in this repository.** The supplied dataset, the trained model and
-> the generated alert records are all deliberately git-ignored. The alerts in
-> particular name 105 real accounts as suspected mules and are joinable back to
-> the bank's file by row index, so they are not published. Everything here
-> regenerates them from your own copy of the data.
-
----
-
-## Read this first
-
-**The challenge injected red-herrings on purpose, and finding them is a graded
-criterion. Stage 0 exists to find them.**
-
-The National Fraud Prevention Challenge brief is explicit on both points:
-
-> *"Labels may contain noise/red-herrings. Not all labels are guaranteed to be
-> correct."*
->
-> **15% weightage for avoidance of red-herrings in data** — *"Rewarded for
-> successfully avoiding several red-herrings injected in the training data."*
-
-That is the same weight the brief gives to additional insights, and more than it
-gives to report quality. So the integrity audit in this project is not a
-complaint about somebody's data. It is a deliverable, and it runs before any
-model is fitted rather than after the metrics look good.
-
-**What it found, without being told anything.** Every negative in the supplied
-account-level file comes from the **October** extract; every positive comes from
-the **September, November, or December** extracts. No month contains both
-classes. So any difference between monthly extraction runs correlates perfectly
-with the label while describing nothing about any customer. This is precisely
-the shape of a deliberately planted artefact, and `schema.partition_columns()`
-identified it from structure alone — low cardinality, class-pure values — with
-no knowledge of the schema and no hint that anything had been planted.
-
-Give a model **only whether each cell was blank** — throw away every value, so no
-account behaviour survives at all:
-
-| What the model sees | AUPRC | AUROC | vs random |
-|---|---|---|---|
-| **Blank/not-blank pattern only, no values** | **0.8236** | **0.9925** | 92× |
-| 250 columns each with \|corr\| < 0.05 (individually useless) | 0.7361 | 0.9734 | 83× |
-| Same columns, labels shuffled *(sanity floor)* | 0.0094 | 0.5284 | 1× |
-| *Random-guess baseline* | *0.0089* | *0.500* | 1× |
-
-Whether a cell is populated is decided by the extraction job, not by a customer.
-The shuffled-label floor collapsing to baseline proves the harness is sound — so
-these are real properties of the data.
-
-Full analysis, reproducible via `src/06_integrity.py`:
-**[`reports/00_INTEGRITY.md`](./reports/00_INTEGRITY.md)**.
-
-The pipeline removes this artefact wherever it can be identified (see §10). What
-remains unidentifiable — a genuine behavioural feature that *also* drifts month
-to month — cannot be separated within this file by any method. Separating it
-needs negatives and positives sampled from the **same months**; that is a
-sampling change, and it applies to every team working from this file.
-
-**Why this matters more than the headline score.** A team that does not run this
-check reports a number inflated by the planted artefact and cannot say by how
-much. We can: §5 quantifies it at +0.068 AUPRC for the raw columns over a model
-holding no values at all. Reporting a smaller, defensible number is the point of
-the exercise the brief set.
+> the generated alert records are all deliberately git-ignored. The alerts name
+> real accounts as suspected mules and are joinable back to the source file by
+> row index, so they are not published. Everything here regenerates them from
+> your own copy of the data.
 
 ---
 
@@ -403,7 +378,68 @@ best-F1; that is recorded in `03_metrics.json` rather than smoothed over.
 
 ---
 
-## 6. EFRMS and AML platform integration
+## 6. What the benchmark can and cannot prove
+
+
+**The challenge injected red-herrings on purpose, and finding them is a graded
+criterion. Stage 0 exists to find them.**
+
+The National Fraud Prevention Challenge brief is explicit on both points:
+
+> *"Labels may contain noise/red-herrings. Not all labels are guaranteed to be
+> correct."*
+>
+> **15% weightage for avoidance of red-herrings in data** — *"Rewarded for
+> successfully avoiding several red-herrings injected in the training data."*
+
+That is the same weight the brief gives to additional insights, and more than it
+gives to report quality. So the integrity audit in this project is not a
+complaint about somebody's data. It is a deliverable, and it runs before any
+model is fitted rather than after the metrics look good.
+
+**What it found, without being told anything.** Every negative in the supplied
+account-level file comes from the **October** extract; every positive comes from
+the **September, November, or December** extracts. No month contains both
+classes. So any difference between monthly extraction runs correlates perfectly
+with the label while describing nothing about any customer. This is precisely
+the shape of a deliberately planted artefact, and `schema.partition_columns()`
+identified it from structure alone — low cardinality, class-pure values — with
+no knowledge of the schema and no hint that anything had been planted.
+
+Give a model **only whether each cell was blank** — throw away every value, so no
+account behaviour survives at all:
+
+| What the model sees | AUPRC | AUROC | vs random |
+|---|---|---|---|
+| **Blank/not-blank pattern only, no values** | **0.8236** | **0.9925** | 92× |
+| 250 columns each with \|corr\| < 0.05 (individually useless) | 0.7361 | 0.9734 | 83× |
+| Same columns, labels shuffled *(sanity floor)* | 0.0094 | 0.5284 | 1× |
+| *Random-guess baseline* | *0.0089* | *0.500* | 1× |
+
+Whether a cell is populated is decided by the extraction job, not by a customer.
+The shuffled-label floor collapsing to baseline proves the harness is sound — so
+these are real properties of the data.
+
+Full analysis, reproducible via `src/06_integrity.py`:
+**[`reports/00_INTEGRITY.md`](./reports/00_INTEGRITY.md)**.
+
+The pipeline removes this artefact wherever it can be identified (see §10). What
+remains unidentifiable — a genuine behavioural feature that *also* drifts month
+to month — cannot be separated within this file by any method. Separating it
+needs negatives and positives sampled from the **same months**; that is a
+sampling change, and it applies to every team working from this file.
+
+**Why this matters more than the headline score.** A team that does not run this
+check reports a number inflated by the planted artefact and cannot say by how
+much. We can: §5 quantifies it at +0.068 AUPRC for the raw columns over a model
+holding no values at all. Reporting a smaller, defensible number is the point of
+the exercise the brief set.
+
+---
+
+---
+
+## 7. EFRMS and AML platform integration
 
 The pipeline emits alerts, case packs and an audit trail in a **documented,
 vendor-neutral schema** whose fields map onto the concepts every AML case
@@ -452,7 +488,7 @@ decision belongs to a human.
 
 ---
 
-## 7. The graph stage, and why it is switched off
+## 8. The graph stage, and why it is switched off
 
 Mule detection is usually a network problem, so the absence of a graph is the
 first thing anyone asks about.
@@ -540,7 +576,7 @@ with Precision@K elsewhere in this project.
 
 ---
 
-## 8. Finding rings, and what a third-party benchmark said about it
+## 9. Finding rings, and what a third-party benchmark said about it
 
 The first version of Stage 6 propagated suspicion outward from accounts a bank
 had **already confirmed**. Its recall is bounded by how good the existing alert
@@ -614,7 +650,7 @@ in [`reports/bench_saml/saml_ring_benchmark.json`](./reports/bench_saml/saml_rin
 
 ---
 
-## 9. When was it a mule? Temporal localisation
+## 10. When was it a mule? Temporal localisation
 
 The challenge submission format asks for four columns, not two:
 
@@ -669,7 +705,7 @@ transactions to localise.
 
 ---
 
-## 10. One system, and what it scores end to end
+## 11. One system, and what it scores end to end
 
 Everything above measures a component. This measures the whole thing.
 
@@ -743,7 +779,7 @@ python src/bench_unified.py --months 3 --no-network  # the ablation
 
 ---
 
-## 11. Pipeline stages
+## 12. Pipeline stages
 
 Run by `src/pipeline.py`, which executes each stage in order and prints the final
 summary. `src/config.py` is the single source of truth for every path, threshold,
@@ -776,7 +812,7 @@ Supporting modules, run on demand rather than by the pipeline:
 
 ---
 
-## 12. The features encode a mule's actual behaviour
+## 13. The features encode a mule's actual behaviour
 
 A mule *receives* money and pushes it straight back out, holds almost nothing,
 in bursts, through digital rails, often at odd hours, on an account whose owner
@@ -800,7 +836,7 @@ against a 0.89% base, rural 1.44%, Savings accounts 1.28% vs Current 0.20%.
 
 ---
 
-## 13. Leak defences
+## 14. Leak defences
 
 Four layers, because correlation thresholds alone are not a defence:
 
@@ -824,7 +860,7 @@ classify the entire feature matrix as identifiers.
 
 ---
 
-## 14. Why the metrics are trustworthy *as metrics*
+## 15. Why the metrics are trustworthy *as metrics*
 
 Everything that touches the label is fitted **inside** the training fold and
 applied frozen to validation rows: feature selection, base models, stacking
@@ -853,7 +889,7 @@ not working rather than quietly dropped from the diagram.
 
 ---
 
-## 15. Staying correct after deployment
+## 16. Staying correct after deployment
 
 Everything above measures the model on the day it was fitted. Two modules exist
 because that is not the day it will be used.
@@ -923,7 +959,7 @@ problem, and reporting it as one trains everybody to ignore the alarm.
 
 ---
 
-## 16. Layout
+## 17. Layout
 
 ```
 muleguard/
@@ -970,9 +1006,9 @@ muleguard/
 
 ---
 
-## 17. Honest limitations
+## 18. Honest limitations
 
-- **The benchmark is contaminated** (see [Read this first](#read-this-first)).
+- **The benchmark is contaminated** (see [§6](#6-what-the-benchmark-can-and-cannot-prove)).
   The reported AUPRC is an upper bound on what this dataset can show, not a
   mule-detection result.
 - **No transaction graph.** All 3,924 variables aggregate an account's own
@@ -994,7 +1030,7 @@ muleguard/
 
 ---
 
-## 18. Reproducing
+## 19. Reproducing
 
 ```powershell
 .\run.ps1 -Verify                    # environment check
