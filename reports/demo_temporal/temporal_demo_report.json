@@ -1,0 +1,20 @@
+{
+  "WARNING": "SYNTHETIC CAPABILITY DEMONSTRATION. The planted windows were created by this script and then found by this script. It says nothing about the supplied dataset, which contains no transactions to localise.",
+  "ledger": {
+    "accounts": 420,
+    "transactions": 517436,
+    "history_days": 900,
+    "mule_accounts": 120
+  },
+  "scored_on_mules": {
+    "n_scored": 120,
+    "mean_temporal_iou": 0.9982,
+    "median_temporal_iou": 1.0,
+    "any_overlap_rate": 1.0,
+    "iou_at_least_0.5": 1.0
+  },
+  "false_windows_on_normals": 300,
+  "normals": 300,
+  "median_true_window_days": 57,
+  "median_pred_window_days": 57
+}

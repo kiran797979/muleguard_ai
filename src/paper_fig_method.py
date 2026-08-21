@@ -259,7 +259,7 @@ def fig_nested_cv() -> None:
     ax.text(6.5, 28, "fitted here, then frozen", fontsize=6.8,
             fontweight="bold", color=ACCENT, zorder=3)
     items = ["feature selection", "base models", "stacking weights",
-             "imputation", "isotonic calibration", "decision threshold"]
+             "imputation", "probability calibration", "decision threshold"]
     cw = (brace_r - 4 - 5) / 3
     for k, name in enumerate(items):
         r, c = divmod(k, 3)

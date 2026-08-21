@@ -1,0 +1,84 @@
+{
+  "source": "SAML-D \u2014 Oztas et al., IEEE ICEBE 2023. Third-party synthetic AML dataset.",
+  "why_this_matters": "Everything rings.py had been measured against was planted by our own generator and found by our own code. This is independent ground truth with named typologies.",
+  "dataset": {
+    "accounts": 855460,
+    "transactions": 9504852,
+    "laundering_transactions": 9873,
+    "network_typology_accounts": 3393,
+    "base_rate": 0.003966
+  },
+  "uses_labels": false,
+  "finding_1_community_detection_fails_and_why": {
+    "verdict": "rings.py does not flag SAML-D's rings, and correctly so.",
+    "measured_conductance_of_true_rings": {
+      "Layered_Fan_Out": 0.99,
+      "Layered_Fan_In": 0.987,
+      "Stacked Bipartite": 0.979,
+      "Cycle": 0.988,
+      "Gather-Scatter": 0.991
+    },
+    "explanation": "A conductance of ~0.99 means each ring member carries roughly 200 transactions of which only 1-2 are ring edges. The laundering is ~1% of that account's activity. No community method separates such a group, and the CONDUCTANCE_CEILING gate rejects them rather than manufacturing confidence.",
+    "component_structure": "The rings are real and ring-sized \u2014 38-52 connected components of 10-16 accounts per typology \u2014 they are simply not separable from the surrounding traffic."
+  },
+  "finding_2_motif_detection_works": {
+    "per_motif": {
+      "FAN_OUT": {
+        "accounts": 18798,
+        "precision": 0.11214,
+        "lift": 28.3,
+        "recall": 0.621
+      },
+      "FAN_IN": {
+        "accounts": 13766,
+        "precision": 0.07497,
+        "lift": 18.9,
+        "recall": 0.304
+      },
+      "GATHER_SCATTER": {
+        "accounts": 8610,
+        "precision": 0.041,
+        "lift": 10.3,
+        "recall": 0.104
+      },
+      "CHAIN": {
+        "accounts": 33080,
+        "precision": 0.03226,
+        "lift": 8.1,
+        "recall": 0.314
+      }
+    },
+    "combined_score_curve": [
+      {
+        "top_k": 1000,
+        "precision": 0.047,
+        "recall": 0.014,
+        "lift": 11.8
+      },
+      {
+        "top_k": 2000,
+        "precision": 0.049,
+        "recall": 0.029,
+        "lift": 12.4
+      },
+      {
+        "top_k": 5000,
+        "precision": 0.047,
+        "recall": 0.069,
+        "lift": 11.8
+      },
+      {
+        "top_k": 25000,
+        "precision": 0.0336,
+        "recall": 0.247,
+        "lift": 8.5
+      }
+    ],
+    "runtime_seconds": 62
+  },
+  "finding_3_two_of_our_own_hypotheses_failed": [
+    "Blending every motif into one score gives 12.4x lift. FAN_OUT alone gives 28.3x at 62% recall. Averaging a strong detector with weak ones destroys it.",
+    "Amount uniformity was expected to separate a laundering split from a payroll run. It does not: filtering to the most uniform fan-outs LOWERS precision from 11.2% to 9.0% and cuts recall from 62% to 11%. Value conservation on gather-scatter behaved the same way. Both are still reported as evidence for an investigator; neither is used to gate."
+  ],
+  "thresholds_were_not_tuned": "WINDOW_DAYS, MIN_LEGS, MAX_CV and CONSERVATION_TOL are round numbers fixed before this benchmark and left alone after it. Tuning them here would produce a detector that scores on SAML-D."
+}

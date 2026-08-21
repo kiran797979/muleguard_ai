@@ -5,12 +5,22 @@ This stage runs ONLY if Stage 2 detected counterparty/edge columns (a real
 transaction ledger of who-paid-whom). Otherwise it exits cleanly, writing a
 skip note — we do not fabricate an edge list to manufacture a graph score.
 
-When edges exist:
+When edges exist this stage does two different jobs:
+
+  SEEDED PROPAGATION  — expand outward from accounts already confirmed.
   * Build a directed transfer graph in NetworkX (node = account).
   * Seed the confirmed mules (target == 1) with propagation score 1.0.
   * Propagate suspicion outward with hop decay (0.85 / 0.70 / 0.55), stopping
     after MAX_HOPS to avoid over-flagging.
-  * Write per-account graph proximity scores to data/graph_scores.csv.
+
+  STRUCTURAL RING DETECTION (`rings.py`) — find networks nobody has flagged.
+  * Uses no labels and no seeds at all, so its recall is not bounded by the
+    quality of the existing alert book.
+  * Surfaces candidate rings ranked by density, isolation, internal cycles,
+    group pass-through and role composition, each with that evidence attached.
+
+  Both are written to data/graph_scores.csv, per account, as separate columns.
+  They answer different questions and neither replaces the other.
 
 Run:  python src/04_graph.py
 """
@@ -22,6 +32,7 @@ import json
 import pandas as pd
 
 import config as C
+import rings as R
 import schema as S
 from utils import load_frame, log, save_json
 
@@ -93,9 +104,27 @@ def main() -> None:
     log(f"Graph: {n} nodes, {len(edges):,} edges, {len(seeds)} seeds")
 
     scores = propagate(edges, seeds, n)
-    out = pd.DataFrame({"account_idx": list(scores.keys()),
-                        "graph_proximity": list(scores.values())})
+
+    # Structural ring detection runs on the same graph but is told nothing about
+    # which accounts are already known. That independence is the point: seeded
+    # propagation can only ever expand the existing alert book, so a ring where
+    # no member has been caught yet is invisible to it.
+    ring_result = R.detect_rings(edges, n_nodes=n)
+    ring_scores = R.account_ring_scores(ring_result)
+    log(f"Rings: {ring_result.get('n_rings_flagged', 0)} candidate ring(s) "
+        f"covering {ring_result.get('accounts_in_flagged_rings', 0)} account(s), "
+        f"found without using any label")
+
+    out = pd.DataFrame({
+        "account_idx": list(range(n)),
+        "graph_proximity": [scores.get(i, 0.0) for i in range(n)],
+        "ring_score": [ring_scores.get(i, 0.0) for i in range(n)],
+    })
     out.to_csv(C.GRAPH_SCORES_CSV, index=False)
+
+    # The full ring evidence is written separately: an investigator handed a
+    # group needs to see why it was grouped, not just a cluster id.
+    save_json(ring_result, C.REPORTS_DIR / "04_rings.json")
 
     save_json({
         "status": "OK",
@@ -103,6 +132,14 @@ def main() -> None:
         "n_edges": len(edges),
         "n_seeds": len(seeds),
         "n_reached": int((out["graph_proximity"] > 0).sum()),
+        "ring_detection": {
+            "uses_labels": False,
+            "n_communities_examined": ring_result.get("n_communities_examined", 0),
+            "n_rings_flagged": ring_result.get("n_rings_flagged", 0),
+            "accounts_in_flagged_rings": ring_result.get("accounts_in_flagged_rings", 0),
+            "role_distribution": ring_result.get("role_distribution", {}),
+            "detail": "reports/04_rings.json",
+        },
     }, C.REPORTS_DIR / "04_graph_report.json")
     log(f"Wrote graph proximity scores -> {C.GRAPH_SCORES_CSV}")
 

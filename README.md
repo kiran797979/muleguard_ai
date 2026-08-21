@@ -28,13 +28,30 @@ metrics — not design targets.
 
 ## Read this first
 
-**The supplied dataset cannot support an honest mule-detection score, and this
-pipeline proves it rather than papering over it.**
+**The challenge injected red-herrings on purpose, and finding them is a graded
+criterion. Stage 0 exists to find them.**
 
-Every negative comes from the **October** extract; every positive comes from the
-**September, November, or December** extracts. No month contains both classes.
-So any difference between monthly extraction runs correlates perfectly with the
-label while describing nothing about any customer.
+The National Fraud Prevention Challenge brief is explicit on both points:
+
+> *"Labels may contain noise/red-herrings. Not all labels are guaranteed to be
+> correct."*
+>
+> **15% weightage for avoidance of red-herrings in data** — *"Rewarded for
+> successfully avoiding several red-herrings injected in the training data."*
+
+That is the same weight the brief gives to additional insights, and more than it
+gives to report quality. So the integrity audit in this project is not a
+complaint about somebody's data. It is a deliverable, and it runs before any
+model is fitted rather than after the metrics look good.
+
+**What it found, without being told anything.** Every negative in the supplied
+account-level file comes from the **October** extract; every positive comes from
+the **September, November, or December** extracts. No month contains both
+classes. So any difference between monthly extraction runs correlates perfectly
+with the label while describing nothing about any customer. This is precisely
+the shape of a deliberately planted artefact, and `schema.partition_columns()`
+identified it from structure alone — low cardinality, class-pure values — with
+no knowledge of the schema and no hint that anything had been planted.
 
 Give a model **only whether each cell was blank** — throw away every value, so no
 account behaviour survives at all:
@@ -55,9 +72,15 @@ Full analysis, reproducible via `src/06_integrity.py`:
 
 The pipeline removes this artefact wherever it can be identified (see §10). What
 remains unidentifiable — a genuine behavioural feature that *also* drifts month
-to month — cannot be separated within this file by any method. Fixing it needs
-negatives and positives sampled from the **same months**; that is a
-data-collection change, and it applies to every team working from this file.
+to month — cannot be separated within this file by any method. Separating it
+needs negatives and positives sampled from the **same months**; that is a
+sampling change, and it applies to every team working from this file.
+
+**Why this matters more than the headline score.** A team that does not run this
+check reports a number inflated by the planted artefact and cannot say by how
+much. We can: §5 quantifies it at +0.068 AUPRC for the raw columns over a model
+holding no values at all. Reporting a smaller, defensible number is the point of
+the exercise the brief set.
 
 ---
 
@@ -183,7 +206,7 @@ behavioural columns, **and no data dictionary at all**. The pipeline finds all
 four traps, builds features by role resolution, and — correctly — reports that
 file as *not* contaminated, because it isn't.
 
-Covered by `tests/test_schema.py` and `tests/test_roles.py` (**25 tests**).
+Covered by `tests/test_schema.py`, `tests/test_roles.py` and `tests/test_rings.py` (**143 tests**).
 
 ### Environment overrides
 
@@ -310,18 +333,18 @@ identical folds, identical seed:
 
 | Condition | Features | AUPRC | vs random |
 |---|---|---|---|
-| Everything | 1,506 | 0.850 | 96× |
-| **Raw columns only** | 1,477 | **0.862** | 97× |
+| Everything | 1,506 | 0.883 | 99× |
+| **Raw columns only** | 1,477 | **0.892** | 100× |
 | *Blank patterns only, no values at all* † | *3,772 bits* | *0.824* | *92×* |
-| **Behavioural features only** | 29 | **0.327** | 37× |
+| **Behavioural features only** | 29 | **0.368** | 41× |
 
 † from the integrity audit's test A, run on the same folds.
 
 Read rows 2 and 3 together. The raw columns, with every value present, beat a
-model that has **no values at all** by only 0.039. Almost everything they
+model that has **no values at all** by only 0.068. Almost everything they
 contribute on this dataset is provenance.
 
-The 29 behavioural features score 0.327 alone, 37× better than random. They are
+The 29 behavioural features score 0.368 alone, 41× better than random. They are
 ratios, so they survive a change in which fields an export populated. That makes
 them the part least explained by the artefact, and **the number we would actually
 defend**.
@@ -350,23 +373,33 @@ deviation. Read them against the integrity finding above, not on their own.
 
 | Operating point | Precision | Recall | AUPRC | For |
 |---|---|---|---|---|
-| **Precision-first** | **0.976 ± 0.067** | 0.692 ± 0.129 | 0.854 ± 0.076 | Automated action: freeze, escalate, prepare an STR |
-| High-recall | 0.531 ± 0.145 | **0.880 ± 0.099** | 0.854 ± 0.076 | Human review queue: accept more false alarms to miss fewer mules |
+| **Precision-first** | **0.989 ± 0.030** | 0.625 ± 0.147 | 0.882 ± 0.062 | Automated action: freeze, escalate, prepare an STR |
+| High-recall | 0.377 ± 0.063 | **0.917 ± 0.056** | 0.882 ± 0.062 | Human review queue: accept more false alarms to miss fewer mules |
 
-Bands, from fitted operating points (edges **68.93** and **685.83**, derived — not
-round numbers somebody picked):
+Bands, from fitted operating points (edges **2.81** and **912.09**, derived — not
+round numbers somebody picked). The high cutoff targets **0.99** precision, not
+0.90, because that band triggers an automated freeze with no human in the loop:
 
 | Band | Accounts | Real mules | Precision | Action |
 |---|---|---|---|---|
-| **HIGH** | 53 | **53** | **1.000** | Freeze outward transfers, escalate to AML, prepare STR |
-| MEDIUM | 52 | 19 | 0.365 | Enhanced monitoring, OTP step-up on transfers |
-| LOW | 8,977 | 9 | 0.001 | Routine monitoring |
+| **HIGH** | 49 | **49** | **1.000** | Freeze outward transfers, escalate to AML, prepare STR |
+| MEDIUM | 190 | 25 | 0.132 | Enhanced monitoring, OTP step-up on transfers |
+| LOW | 8,843 | 7 | 0.001 | Routine monitoring |
 
 Review the top 50 accounts and you find 50 mules with **zero** false alarms.
-Review 105 (1.2% of the book) across both bands and you catch 72 of 81 — **89% of
-the fraud** — with no genuine customer frozen. The remaining 9 mules score below
+Review 239 (2.6% of the book) across both bands and you catch 74 of 81 — **91% of
+the fraud** — with no genuine customer frozen. The remaining 7 mules score below
 most ordinary customers; they are not empty accounts, they simply behave like
 customers, and the fact that would separate them is who sent them the money.
+
+**Where the 0.99 target costs you.** Demanding near-certainty for an automated
+freeze cuts single-point recall from 0.712 to 0.625, and the review queue more
+than doubles from 105 accounts to 239. What it buys is a freeze band that is
+100% mules: at a 0.90 target the same model puts 60 accounts in that band, of
+which **2 are innocent people whose money would be stopped**. We took the
+smaller, stricter band. The target was reachable on inner data in **93.3% of
+folds** rather than all of them, and the one fold where it was not fell back to
+best-F1; that is recorded in `03_metrics.json` rather than smoothed over.
 
 ---
 
@@ -430,6 +463,31 @@ no IFSC. Every column aggregates a single account's own activity. Without edges
 there is no graph, so `src/04_graph.py` detects the absence, writes the reason to
 `reports/04_graph_report.json`, and exits rather than fabricating an edge list.
 
+### It finds rings, not just neighbours of known mules
+
+The first version of this stage propagated suspicion outward from accounts a
+bank had **already confirmed**. That is genuinely useful and it is not ring
+detection: its recall is bounded by how good the existing alert book was, and a
+ring where nobody has been caught yet is invisible to it.
+
+`src/rings.py` closes that gap. It finds the network from structure alone, with
+**no labels and no seeds**, because a laundering ring has a shape ordinary
+payment traffic does not:
+
+| Evidence | What it measures |
+|---|---|
+| **Density** | members transact with each other far more than chance allows |
+| **Isolation** | many internal edges, few to the outside — formally, low `conductance` |
+| **Cycles** | money can return towards its origin in a few hops |
+| **Pass-through** | value entering the group leaves again; little is retained |
+| **Roles** | a collector fans in, relays chain onward, a terminal cashes out |
+
+Any one alone is weak — families and small businesses form dense clusters, and
+mutual payments make innocent cycles. Requiring several at once is what
+separates a ring from a neighbourhood. Every candidate is returned **with the
+evidence that produced it**, so an investigator sees why a group was grouped
+rather than being handed an opaque cluster id.
+
 ### Proving the code works anyway
 
 "It would work if the data allowed it" is a claim, so we made it demonstrable:
@@ -455,6 +513,26 @@ innocent accounts. That collapse is the honest argument against untuned
 propagation, and it is why the pipeline consumes this as a **0.15 blend weight**
 on the risk score rather than as an alert.
 
+The same ledger, run through `rings.py` with **nothing given to it at all** — no
+seeds, no labels, no count of how many rings exist:
+
+| Top-K candidates | Accounts surfaced | Planted members found | Precision | Recall | Alerts per find |
+|---|---|---|---|---|---|
+| **3** | 18 | **18** | **100%** | 34.6% | **1.0** |
+| 5 | 29 | 25 | 86.2% | 48.1% | 1.2 |
+| **8** | 49 | 31 | 63.3% | **59.6%** | 1.6 |
+| 20 | 111 | 31 | 27.9% | 59.6% | 3.6 |
+
+The two are complementary rather than competing. **Propagation reaches further
+(92%) but has to be told where to start.** Structural detection starts from
+nothing and its top three candidates are exactly right, then plateaus near 60%:
+the members it cannot reach are the ones whose only link to the ring is a single
+edge, which no amount of community detection recovers.
+
+Recall stops improving after eight candidates while false positives keep
+accruing, so the honest operating point is "review the top handful", exactly as
+with Precision@K elsewhere in this project.
+
 > **This is a capability demonstration, not a result.** The rings were planted by
 > the script and then found by the script. It says nothing about mule detection
 > on the supplied data. Every output lives under `reports/demo_graph/` and the
@@ -462,7 +540,210 @@ on the risk score rather than as an alert.
 
 ---
 
-## 8. Pipeline stages
+## 8. Finding rings, and what a third-party benchmark said about it
+
+The first version of Stage 6 propagated suspicion outward from accounts a bank
+had **already confirmed**. Its recall is bounded by how good the existing alert
+book was, and a ring where nobody has been caught yet is invisible to it. Two
+modules close that gap, and they fail in different places — which is the useful
+part.
+
+### `rings.py` — structural community detection
+
+Finds groups that are densely connected internally and sparsely connected
+outward, using density, conductance, internal cycles, group pass-through and
+role composition. **No labels, no seeds.** On a synthetic ledger with planted
+rings its top three candidates are exact hits (18 accounts, 18 planted, 1.0
+alerts per find), reaching ~60% recall by the eighth candidate.
+
+### Then we benchmarked it against SAML-D, and it failed
+
+[SAML-D](https://www.kaggle.com/datasets/berkanoztas/synthetic-transaction-monitoring-dataset-aml)
+(Oztas et al., IEEE ICEBE 2023) is third-party ground truth: 855,460 accounts,
+9.5M transactions, 28 named typologies. `rings.py` does not flag its rings, and
+the measurement says exactly why:
+
+| Typology | Conductance of the true ring |
+|---|---|
+| Layered_Fan_Out | 0.990 |
+| Layered_Fan_In | 0.987 |
+| Cycle | 0.988 |
+| Gather-Scatter | 0.991 |
+| Stacked Bipartite | 0.979 |
+
+A conductance near 1.0 means **each ring member carries ~200 transactions of
+which only one or two are ring edges** — the laundering is about 1% of that
+account's activity. The rings are real and ring-sized (38–52 components of 10–16
+accounts each); they are simply not *separable*. No community method finds them,
+and our gates reject them rather than manufacturing confidence.
+
+That is a property of real muling, not a quirk of one dataset. A recruited
+account keeps paying its bills.
+
+### `motifs.py` — find the shape, not the community
+
+So look for the laundering shape locally and in time instead, which needs no
+global separability. Measured on the same SAML-D ground truth, no labels used:
+
+| Motif | Accounts | Precision | Lift | Recall |
+|---|---|---|---|---|
+| **FAN_OUT** | 18,798 | 11.2% | **28.3×** | **62.1%** |
+| FAN_IN | 13,766 | 7.5% | 18.9× | 30.4% |
+| GATHER_SCATTER | 8,610 | 4.1% | 10.3× | 10.4% |
+| CHAIN | 33,080 | 3.2% | 8.1× | 31.4% |
+
+*(base rate 0.397%; whole file scored in 62 seconds)*
+
+**62% of network-laundering accounts recovered inside 2.2% of the book, at 28×
+the base rate, from an unlabelled transaction log.**
+
+### Two of our own hypotheses did not survive
+
+- **Blending the motifs made it worse.** One combined score gives 12.4× lift.
+  FAN_OUT alone gives 28.3×. Averaging a strong detector with weak ones destroys
+  it, so per-motif account sets are returned alongside the blend and a deployer
+  can decline it.
+- **Amount uniformity did not discriminate.** We expected a laundering split into
+  near-equal parts to separate from a payroll run. It does not: filtering to the
+  most uniform fan-outs *lowers* precision from 11.2% to 9.0% and cuts recall
+  from 62% to 11%. Value conservation behaved the same way. Both are still
+  reported as evidence on an alert; neither is used to gate.
+
+Thresholds were fixed before the benchmark and left alone after it. Full result
+in [`reports/bench_saml/saml_ring_benchmark.json`](./reports/bench_saml/saml_ring_benchmark.json).
+
+---
+
+## 9. When was it a mule? Temporal localisation
+
+The challenge submission format asks for four columns, not two:
+
+```csv
+account_id,is_mule,suspicious_start,suspicious_end
+ACCT_000003,0.87,2023-11-15T09:30:00,2024-02-20T16:45:00
+```
+
+and scores the window separately with **temporal IoU** against the ground-truth
+activity period. A probability alone leaves half the submission blank.
+
+This is a different question from "is this account a mule". A mule account is
+usually a real person's real account that behaved normally for years, ran hot for
+weeks or months, and then went quiet. Flagging the account is stage one. Saying
+*which* period was the laundering decides which transactions go into the STR and
+which are an innocent salary history.
+
+`src/temporal.py` scores every day of an account's history against five typology
+signals — pass-through symmetry, volume burst, velocity, structuring under a
+reporting threshold, and round amounts — then takes the contiguous interval
+carrying the most excess suspicion, via Kadane's maximum subarray.
+
+### The one decision that made it work
+
+The baseline you subtract before running Kadane is the whole ballgame:
+
+| Baseline | Mean IoU | Median predicted window |
+|---|---|---|
+| Account's own median | **0.063** | **898 days** |
+| Fixed high quantile (0.90) | 0.994 | 57 days |
+| **Otsu's method** | **0.998** | **57 days** |
+
+*(planted episodes had a median true length of 57 days inside a 900-day history)*
+
+Kadane maximises a **sum**, so if the typical day carries even slightly positive
+excess the window never stops growing — with a median baseline it returned the
+entire history and scored 0.06.
+
+A fixed quantile fixes that, but only by assuming what share of the history is
+laundering, and tuning that share against our own generator would prove nothing
+except that we can fit our own generator. **Otsu assumes no such share.** It asks
+whether an account's daily scores form one blob or two and cuts where they are
+most distinct, so a genuine episode and a flat history go through the same rule.
+Its between-class variance is returned as `window_confidence`, and it separates
+the classes on its own: median **0.031** for accounts with an episode against
+**0.007** for those without.
+
+Reproduce with `python src/temporal_demo.py`. Like the graph demonstration, the
+episodes were planted by the script and then found by the script — it proves the
+code path works and says nothing about the supplied dataset, which contains no
+transactions to localise.
+
+---
+
+## 10. One system, and what it scores end to end
+
+Everything above measures a component. This measures the whole thing.
+
+`src/score_unified.py` takes a transaction ledger in one end and produces the
+required submission out the other, running four independent signal families:
+
+| Family | What it reads | Module |
+|---|---|---|
+| **Behavioural** | one account's own money: pass-through, retention, burstiness, threshold-hugging | `ledger_features.py` |
+| **Motif** | the shape of a laundering event in a time window | `motifs.py` |
+| **Structural** | closed cells, dense inside and sparse outward | `rings.py` |
+| **Temporal** | when the episode happened | `temporal.py` |
+
+They fail in *different places*, which is the point of having four. Motifs need
+no global structure and work when a mule keeps trading normally. Rings need the
+cell to be separable and fail when it is not. Behavioural features need no graph
+at all. Blending them is coverage, not padding.
+
+**The behavioural features are built from the raw ledger**, not from
+pre-aggregated columns. That is what lets the same typology signals work on any
+bank's transaction table rather than only on a file that already contains
+`TOT_TXNAMT_CR_L7D`.
+
+### Combined by a fitted model, not a hand-weighted sum
+
+Motif and ring scores enter as ordinary columns and the ensemble learns what
+each is worth. A hand-weighted blend would be us asserting the weights; this
+makes the data assert them — including the possibility that a signal is worth
+nothing, which is exactly what happened to the isolation forest and got
+published rather than hidden. Without labels it falls back to a documented
+rank-average and says so.
+
+### Measured end to end on SAML-D
+
+493,833 accounts, 2.7M transactions, third-party ground truth, model fitted on
+the training split only:
+
+| Held out: 148,150 accounts, base rate 0.461% | |
+|---|---|
+| **AUPRC** | **0.4207 — 91× the base rate** |
+| AUROC | 0.9853 |
+| **Precision @ top 50** | **70.0% — 152× lift** |
+| Recall @ top 1,000 | 61.4% at 41.9% precision |
+
+### Does the network layer actually earn its place?
+
+Same ledger, same split, same seed, same model. The only difference is whether
+the 10 motif/ring/role columns are present:
+
+| | Behavioural only | **+ network** | Δ |
+|---|---|---|---|
+| AUPRC | 0.325 | **0.421** | **+0.096 (+29%)** |
+| Lift over base rate | 70.5× | **91.2×** | +20.7 |
+| Precision @ 50 | 58.0% | **70.0%** | **+12 pts** |
+| Recall @ 1,000 | 48.9% | **61.4%** | **+12.5 pts** |
+
+**Ten of thirty-eight columns buy a 29% relative gain in AUPRC.** On this data
+the graph evidence is not decoration, and that is measured rather than claimed.
+
+Two caveats, both recorded in
+[`reports/bench_unified/network_ablation.json`](./reports/bench_unified/network_ablation.json):
+account labels are **derived** from transaction labels, because SAML-D labels
+transactions while a bank labels accounts; and validation is a single stratified
+split rather than the nested repeated CV used for the headline dataset. Both
+affect how the number should be read.
+
+```bash
+python src/bench_unified.py --months 3               # the full system
+python src/bench_unified.py --months 3 --no-network  # the ablation
+```
+
+---
+
+## 11. Pipeline stages
 
 Run by `src/pipeline.py`, which executes each stage in order and prints the final
 summary. `src/config.py` is the single source of truth for every path, threshold,
@@ -474,7 +755,7 @@ and hyper-parameter.
 | 1 | `01_clean.py` | Semantic leak removal, categorical encoding, activity-aware imputation, extract hardening, separation audit |
 | 2/3 | `02_features.py` | 29 named mule-typology features + row-profile aggregates + honest graph-feasibility check |
 | 4/5 | `03_train.py` | Nested repeated CV: in-fold selection, IsolationForest + XGBoost + LightGBM, stacking, isotonic calibration, threshold |
-| 6 | `04_graph.py` | NetworkX label propagation — **only if** counterparty data exists |
+| 6 | `04_graph.py` | Seeded label propagation **and** unseeded structural ring detection (`rings.py`) — **only if** counterparty data exists |
 | 7/8 | `05_score_explain.py` | 0–1000 risk score, LOW/MEDIUM/HIGH bands, SHAP reasons, per-account risk reports |
 | 9 | `09_rules.py` | Deterministic AML rule layer, measured against the base rate, thresholds untuned |
 | 10 | `08_feature_ablation.py` | How much of the score survives removing the behavioural features (research-only; skipped in fast mode) |
@@ -486,6 +767,8 @@ Supporting modules, run on demand rather than by the pipeline:
 |---|---|
 | `integration.py` | Vendor-neutral alert / case-pack export for EFRMS and AML platforms |
 | `graph_demo.py` | Synthetic-ledger demonstration of the graph stage (§7) |
+| `temporal.py` | Suspicious-window localisation and temporal IoU (§8) |
+| `temporal_demo.py` | Synthetic demonstration of window recovery |
 | `plots.py` | PR / ROC / calibration curves |
 | `paper_figures.py`, `paper_fig_method.py`, `paper_fig_ablation.py` | Publication figures |
 | `make_paper.py`, `make_paper_tex.py` | Build the `.docx` and LaTeX manuscripts |
@@ -493,7 +776,7 @@ Supporting modules, run on demand rather than by the pipeline:
 
 ---
 
-## 9. The features encode a mule's actual behaviour
+## 12. The features encode a mule's actual behaviour
 
 A mule *receives* money and pushes it straight back out, holds almost nothing,
 in bursts, through digital rails, often at odd hours, on an account whose owner
@@ -517,7 +800,7 @@ against a 0.89% base, rural 1.44%, Savings accounts 1.28% vs Current 0.20%.
 
 ---
 
-## 10. Leak defences
+## 13. Leak defences
 
 Four layers, because correlation thresholds alone are not a defence:
 
@@ -541,7 +824,7 @@ classify the entire feature matrix as identifiers.
 
 ---
 
-## 11. Why the metrics are trustworthy *as metrics*
+## 14. Why the metrics are trustworthy *as metrics*
 
 Everything that touches the label is fitted **inside** the training fold and
 applied frozen to validation rows: feature selection, base models, stacking
@@ -570,7 +853,77 @@ not working rather than quietly dropped from the diagram.
 
 ---
 
-## 12. Layout
+## 15. Staying correct after deployment
+
+Everything above measures the model on the day it was fitted. Two modules exist
+because that is not the day it will be used.
+
+### Label noise (`label_noise.py`)
+
+Every other defence protects against bad *features*. None protects against a bad
+*label*, and the operating threshold is chosen against those same labels, so a
+mislabelled subset shifts the cutoff for everyone.
+
+Confident learning on **out-of-fold** scores: for each class, take the average
+confidence the model assigns to accounts carrying that label; an account whose
+label disagrees *and* which clears the other class's threshold is a candidate.
+Two conditions, not one, because "the model disagrees" alone flags every
+borderline case.
+
+**Labelled legitimate, scored high** is either a mule nobody caught or a false
+positive. **Labelled mule, scored low** is either a planted red-herring label or
+a real mule the data cannot show.
+
+It does **not** claim any label is wrong. That ambiguity cannot be resolved by
+arithmetic. The output is a ranked review queue with evidence attached, plus a
+calibration-free rank check, because probabilities depend on the calibrator and
+ranks do not.
+
+### Drift and the re-selection policy (`drift.py`)
+
+Detecting drift is the easy half. The hard half is deciding in advance what you
+do about it. The module is built around one distinction:
+
+| Signal | Available | Licenses |
+|---|---|---|
+| **Unsupervised** — feature PSI, score PSI, band populations | immediately, no labels | alarm, recalibration, retraining |
+| **Supervised** — realised precision from investigator decisions | late, reviewed accounts only | **moving a threshold** |
+
+**Unsupervised drift must never move a precision-targeted cutoff.** Re-fitting a
+threshold to make band populations look normal is fitting to noise, and it would
+conceal exactly the degradation the monitoring exists to find. Enforced by a test.
+
+| Action | Trigger |
+|---|---|
+| `MONITOR` | inside tolerance |
+| `RECALIBRATE` | scores shifted, features stable — refit the calibrator only |
+| `RETRAIN` | weighted feature PSI ≥ 0.25 |
+| `REFIT_THRESHOLDS` | realised precision >10% below target, on enough reviews |
+| `HALT_AUTOMATION` | weighted PSI ≥ 0.50 — **automated freezing stops until a human signs off** |
+
+That last rung exists because this system freezes people's money. There has to be
+a written condition under which it stops doing that by itself.
+
+**Hysteresis:** every rung above `MONITOR` needs the condition to hold for two
+consecutive windows, so one noisy batch cannot trigger a retrain, and a clean
+window resets the streak:
+
+```
+wk2 one odd batch          MONITOR            (absorbed)
+wk3 it recovers            MONITOR
+wk5 scores still sliding   RECALIBRATE
+wk7 alerts still bad       REFIT_THRESHOLDS
+wk9 population has moved   HALT_AUTOMATION    signoff required
+```
+
+PSI bands are the long-standing credit-risk conventions rather than numbers we
+chose, because a bank's model-risk function already knows what 0.25 means. Drift
+is weighted by SHAP importance: movement in a column the model ignores is not a
+problem, and reporting it as one trains everybody to ignore the alarm.
+
+---
+
+## 16. Layout
 
 ```
 muleguard/
@@ -585,6 +938,13 @@ muleguard/
 │   ├── roles.py              # resolves columns by MEANING, not by name
 │   ├── dictionary.py         # the data dictionary as executable knowledge
 │   ├── ensemble.py           # base models, stacking, isotonic calibration
+│   ├── score_unified.py      # THE system: ledger in, submission out
+│   ├── ledger_features.py    # behavioural features from raw transactions
+│   ├── rings.py              # structural ring detection — no labels, no seeds
+│   ├── temporal.py           # when the account was being used — window + IoU
+│   ├── motifs.py             # AML typology shapes: fan-in/out, gather-scatter, chains
+│   ├── label_noise.py        # which labels a human should re-check
+│   ├── drift.py              # drift detection + operating-point re-selection policy
 │   ├── utils.py
 │   ├── 06_integrity.py       # Stage 0 — read this output first
 │   ├── 01_clean.py … 05_score_explain.py
@@ -597,7 +957,7 @@ muleguard/
 │   ├── service.py            # artefact loading, account analysis, live scoring
 │   ├── jobs.py               # upload → subprocess pipeline runs
 │   └── static/               # index.html, brutal.css, app.js — no build step
-├── tests/                    # test_schema.py, test_roles.py (25 tests)
+├── tests/                    # test_schema.py, test_roles.py, test_rings.py, test_temporal.py, test_motifs.py, test_label_noise.py, test_drift.py, test_unified.py (143 tests)
 ├── paper/                    # LaTeX manuscript + vector figures
 └── reports/
     ├── 00_INTEGRITY.md       # the finding that frames every number
@@ -610,7 +970,7 @@ muleguard/
 
 ---
 
-## 13. Honest limitations
+## 17. Honest limitations
 
 - **The benchmark is contaminated** (see [Read this first](#read-this-first)).
   The reported AUPRC is an upper bound on what this dataset can show, not a
@@ -634,7 +994,7 @@ muleguard/
 
 ---
 
-## 14. Reproducing
+## 18. Reproducing
 
 ```powershell
 .\run.ps1 -Verify                    # environment check
@@ -651,7 +1011,7 @@ MULEGUARD_REPEATS=1 ./run.sh
 Run the tests:
 
 ```bash
-python -m pytest tests/ -q           # 25 tests
+python -m pytest tests/ -q           # 143 tests
 ```
 
 Results are deterministic: identical data and `random_state` give identical

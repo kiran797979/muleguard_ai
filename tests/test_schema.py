@@ -170,3 +170,34 @@ def _main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(_main())
+
+
+# --------------------------------------------------------------------------
+# Ambiguous target resolution must declare itself
+# --------------------------------------------------------------------------
+def test_ambiguous_target_is_flagged_low_confidence():
+    """Two rival binary columns and no name match is a guess, not a resolution.
+
+    The last-column convention is real and worth using, but a silently wrong
+    target is the worst failure this pipeline has: every later stage still runs
+    and still looks correct. So it resolves and says so.
+    """
+    rng = np.random.default_rng(0)
+    n = 200
+    df = pd.DataFrame({"amt": rng.normal(size=n),
+                       "flag_a": rng.integers(0, 2, n),
+                       "flag_b": rng.integers(0, 2, n)})
+    col, how = S.resolve_target(df)
+    assert col == "flag_b"
+    assert how.startswith("LOW CONFIDENCE")
+    assert "flag_a" in how, "the rival candidate must be named"
+    assert S.describe_schema(df, col, how)["target_low_confidence"] is True
+
+
+def test_unambiguous_target_is_not_flagged():
+    rng = np.random.default_rng(0)
+    n = 200
+    df = pd.DataFrame({"amt": rng.normal(size=n), "is_mule": rng.integers(0, 2, n)})
+    col, how = S.resolve_target(df)
+    assert not how.startswith("LOW CONFIDENCE")
+    assert S.describe_schema(df, col, how)["target_low_confidence"] is False

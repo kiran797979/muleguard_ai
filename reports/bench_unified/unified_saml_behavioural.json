@@ -1,0 +1,74 @@
+{
+  "source": "SAML-D (Oztas et al., IEEE ICEBE 2023), third-party ground truth",
+  "label_definition": "account was a counterparty to at least one laundering transaction; derived from transaction labels, which is a modelling choice and is stated as one",
+  "validation": "single stratified 70/30 split, model fitted on train only",
+  "months_used": 3,
+  "transactions": 2691127,
+  "accounts": 493833,
+  "features": 28,
+  "network_used": false,
+  "held_out": {
+    "accounts": 148150,
+    "positives": 683,
+    "base_rate": 0.00461
+  },
+  "auprc": 0.3249,
+  "auprc_lift": 70.5,
+  "auroc": 0.9806,
+  "precision_at_k": [
+    {
+      "k": 50,
+      "found": 29,
+      "precision": 0.58,
+      "recall": 0.0425,
+      "lift": 125.8
+    },
+    {
+      "k": 100,
+      "found": 54,
+      "precision": 0.54,
+      "recall": 0.0791,
+      "lift": 117.1
+    },
+    {
+      "k": 250,
+      "found": 127,
+      "precision": 0.508,
+      "recall": 0.1859,
+      "lift": 110.2
+    },
+    {
+      "k": 500,
+      "found": 210,
+      "precision": 0.42,
+      "recall": 0.3075,
+      "lift": 91.1
+    },
+    {
+      "k": 1000,
+      "found": 334,
+      "precision": 0.334,
+      "recall": 0.489,
+      "lift": 72.4
+    },
+    {
+      "k": 2500,
+      "found": 536,
+      "precision": 0.2144,
+      "recall": 0.7848,
+      "lift": 46.5
+    },
+    {
+      "k": 5000,
+      "found": 601,
+      "precision": 0.1202,
+      "recall": 0.8799,
+      "lift": 26.1
+    }
+  ],
+  "pipeline_meta": {
+    "n_transactions": 2691127,
+    "n_accounts": 493833,
+    "network_used": false
+  }
+}

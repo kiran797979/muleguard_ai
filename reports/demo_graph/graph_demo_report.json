@@ -1,4 +1,168 @@
 {
+  "ring_detection_unseeded": {
+    "uses_labels": false,
+    "uses_seeds": false,
+    "planted_members": 52,
+    "communities_examined": 374,
+    "candidate_rings": 116,
+    "top8_entirely_planted": 3,
+    "curve": [
+      {
+        "top_k_rings": 3,
+        "accounts_surfaced": 18,
+        "planted_members_found": 18,
+        "precision": 1.0,
+        "recall_of_all_members": 0.3462,
+        "alerts_per_member_found": 1.0
+      },
+      {
+        "top_k_rings": 5,
+        "accounts_surfaced": 29,
+        "planted_members_found": 25,
+        "precision": 0.8621,
+        "recall_of_all_members": 0.4808,
+        "alerts_per_member_found": 1.2
+      },
+      {
+        "top_k_rings": 8,
+        "accounts_surfaced": 49,
+        "planted_members_found": 31,
+        "precision": 0.6327,
+        "recall_of_all_members": 0.5962,
+        "alerts_per_member_found": 1.6
+      },
+      {
+        "top_k_rings": 10,
+        "accounts_surfaced": 59,
+        "planted_members_found": 31,
+        "precision": 0.5254,
+        "recall_of_all_members": 0.5962,
+        "alerts_per_member_found": 1.9
+      },
+      {
+        "top_k_rings": 15,
+        "accounts_surfaced": 84,
+        "planted_members_found": 31,
+        "precision": 0.369,
+        "recall_of_all_members": 0.5962,
+        "alerts_per_member_found": 2.7
+      },
+      {
+        "top_k_rings": 20,
+        "accounts_surfaced": 111,
+        "planted_members_found": 31,
+        "precision": 0.2793,
+        "recall_of_all_members": 0.5962,
+        "alerts_per_member_found": 3.6
+      },
+      {
+        "top_k_rings": 30,
+        "accounts_surfaced": 158,
+        "planted_members_found": 31,
+        "precision": 0.1962,
+        "recall_of_all_members": 0.5962,
+        "alerts_per_member_found": 5.1
+      },
+      {
+        "top_k_rings": 50,
+        "accounts_surfaced": 272,
+        "planted_members_found": 31,
+        "precision": 0.114,
+        "recall_of_all_members": 0.5962,
+        "alerts_per_member_found": 8.8
+      }
+    ],
+    "top_candidates": [
+      {
+        "size": 5,
+        "internal_density": 0.5,
+        "conductance": 0.5556,
+        "isolation": 0.4444,
+        "cycles_within": 3,
+        "passthrough": 1.0,
+        "role_evidence": 0.3333,
+        "ring_score": 0.7144,
+        "planted_members_inside": 5
+      },
+      {
+        "size": 6,
+        "internal_density": 0.4333,
+        "conductance": 0.5417,
+        "isolation": 0.4583,
+        "cycles_within": 3,
+        "passthrough": 0.8571,
+        "role_evidence": 0.6667,
+        "ring_score": 0.6693,
+        "planted_members_inside": 6
+      },
+      {
+        "size": 7,
+        "internal_density": 0.3571,
+        "conductance": 0.5,
+        "isolation": 0.5,
+        "cycles_within": 3,
+        "passthrough": 1.0,
+        "role_evidence": 0.6667,
+        "ring_score": 0.656,
+        "planted_members_inside": 7
+      },
+      {
+        "size": 3,
+        "internal_density": 0.5,
+        "conductance": 0.5714,
+        "isolation": 0.4286,
+        "cycles_within": 0,
+        "passthrough": 1.0,
+        "role_evidence": 0.6667,
+        "ring_score": 0.6238,
+        "planted_members_inside": 0
+      },
+      {
+        "size": 8,
+        "internal_density": 0.2857,
+        "conductance": 0.5455,
+        "isolation": 0.4545,
+        "cycles_within": 3,
+        "passthrough": 0.7143,
+        "role_evidence": 1.0,
+        "ring_score": 0.5744,
+        "planted_members_inside": 7
+      },
+      {
+        "size": 6,
+        "internal_density": 0.2667,
+        "conductance": 0.4839,
+        "isolation": 0.5161,
+        "cycles_within": 2,
+        "passthrough": 0.875,
+        "role_evidence": 0.6667,
+        "ring_score": 0.5707,
+        "planted_members_inside": 0
+      },
+      {
+        "size": 8,
+        "internal_density": 0.3036,
+        "conductance": 0.4754,
+        "isolation": 0.5246,
+        "cycles_within": 3,
+        "passthrough": 0.7059,
+        "role_evidence": 0.6667,
+        "ring_score": 0.5658,
+        "planted_members_inside": 6
+      },
+      {
+        "size": 6,
+        "internal_density": 0.1667,
+        "conductance": 0.2857,
+        "isolation": 0.7143,
+        "cycles_within": 0,
+        "passthrough": 1.0,
+        "role_evidence": 1.0,
+        "ring_score": 0.5619,
+        "planted_members_inside": 0
+      }
+    ]
+  },
   "WARNING": "SYNTHETIC CAPABILITY DEMONSTRATION. Not a result, not a benchmark, and not evidence about the hackathon dataset. The rings below were planted by this script and then found by this script. Its only purpose is to show that the Stage 6 code path executes when a counterparty ledger exists.",
   "why_this_exists": "reports/04_graph_report.json records that the real dataset has no counterparty column, so Stage 6 disables itself. This demonstrates the disabled code.",
   "uses_production_code": "src/04_graph.py:propagate \u2014 imported, not copied",

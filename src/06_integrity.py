@@ -179,7 +179,15 @@ def main() -> None:
     partitions = audit.get("partition_columns", {}).get("columns", [])
     hard_partition = [p for p in partitions if p.get("purity", 0) >= 0.999]
 
+    # Row order is checked here rather than in Stage 1 because it is not a
+    # column and so cannot be dropped. It is a property of the file itself.
+    order = S.row_order_leak(y)
+    audit["row_order"] = order
+
     grounds = []
+    if order.get("sorted_by_label"):
+        grounds.append("the file is ordered by label, so row position alone "
+                       "reproduces it and any unshuffled split is invalid")
     if _exceeds(a):
         grounds.append("a model given only blank/not-blank patterns separates "
                        "the classes far above the base rate")

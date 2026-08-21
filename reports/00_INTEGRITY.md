@@ -41,7 +41,7 @@ that from genuine behaviour, because within this file the two are the same thing
 
 ## Verdict
 
-CONTAMINATED on 3 ground(s): a model given only blank/not-blank patterns separates the classes far above the base rate; columns that are individually useless still separate the classes when combined; the classes fall into disjoint value sets of F2230 (MNTH), so that column alone reproduces the label. Metrics from this dataset measure how the sample was assembled as well as customer behaviour, and the two cannot be cleanly separated within this file.
+CONTAMINATED on 4 ground(s): the file is ordered by label, so row position alone reproduces it and any unshuffled split is invalid; a model given only blank/not-blank patterns separates the classes far above the base rate; columns that are individually useless still separate the classes when combined; the classes fall into disjoint value sets of F2230 (MNTH), so that column alone reproduces the label. Metrics from this dataset measure how the sample was assembled as well as customer behaviour, and the two cannot be cleanly separated within this file.
 
 ## What the pipeline does about it
 

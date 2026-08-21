@@ -124,6 +124,21 @@ def resolve_target(df: pd.DataFrame, configured: str | None = None) -> tuple[str
         return binaries[0], "the only binary column in the dataset"
 
     if df.columns[-1] in binaries:
+        # "The target is the last column" is a real convention and worth using,
+        # but with several binary columns in play it is a guess, and a silently
+        # wrong target is the worst failure this pipeline has: everything
+        # downstream still runs and still looks correct. So the guess is taken
+        # and then declared, naming the columns it passed over, rather than
+        # being buried in a one-line provenance string nobody reads.
+        rivals = [c for c in binaries if c != df.columns[-1]]
+        if rivals:
+            shown = ", ".join(map(str, rivals[:6]))
+            more = f" and {len(rivals) - 6} more" if len(rivals) > 6 else ""
+            return df.columns[-1], (
+                f"LOW CONFIDENCE: taken as the last column and binary, but "
+                f"{len(rivals)} other binary column(s) could equally be the "
+                f"target ({shown}{more}). Set MULEGUARD_TARGET to remove the "
+                f"ambiguity.")
         return df.columns[-1], "last column, and it is binary"
 
     raise KeyError(
@@ -339,6 +354,57 @@ def partition_columns(df: pd.DataFrame, target: str,
 
 
 # --------------------------------------------------------------------------
+# 4c. Row order — the artefact that leaves no column behind
+# --------------------------------------------------------------------------
+def row_order_leak(y) -> dict:
+    """Is the label predictable from a row's position in the file?
+
+    A dataset assembled by stacking a block of negatives on a block of positives
+    carries a perfect predictor that appears in no column at all. It cannot leak
+    into the model directly, because position is not a feature. It does
+    something worse: it silently breaks any split that is not shuffled and
+    stratified, so a naive holdout hands one class entirely to train and the
+    other entirely to test.
+
+    Measured as the AUROC of row index as a classifier. 0.5 is a shuffled file;
+    1.0 means every positive sits after every negative; 0.0 means the reverse.
+    Both extremes are the same finding.
+    """
+    y = np.asarray(y).astype(int)
+    n = len(y)
+    n_pos = int(y.sum())
+    if n_pos == 0 or n_pos == n:
+        return {"applicable": False, "reason": "only one class present"}
+
+    pos_idx = np.flatnonzero(y == 1)
+    neg_idx = np.flatnonzero(y == 0)
+    # AUROC of position, via the rank-sum identity: no sorting of scores needed
+    # because the "score" IS the row index and is already in order.
+    rank_sum = float(pos_idx.sum()) + n_pos          # ranks are 1-based
+    auroc = (rank_sum - n_pos * (n_pos + 1) / 2) / (n_pos * (n - n_pos))
+
+    separation = abs(auroc - 0.5) * 2                # 0 shuffled, 1 fully sorted
+    contiguous = bool(pos_idx.max() - pos_idx.min() + 1 == n_pos)
+    return {
+        "applicable": True,
+        "position_auroc": round(float(auroc), 6),
+        "separation": round(float(separation), 6),
+        "positives_are_contiguous": contiguous,
+        "first_positive_row": int(pos_idx.min()),
+        "last_positive_row": int(pos_idx.max()),
+        "n_rows": n,
+        "sorted_by_label": bool(separation > 0.98),
+        "verdict": ("The file is ordered by label: every positive sits in one "
+                    "contiguous block. Row position is a perfect predictor that "
+                    "belongs to no column, so it cannot be dropped — it has to be "
+                    "shuffled away. Any split that is not shuffled and stratified "
+                    "will be catastrophically wrong on this file."
+                    if separation > 0.98 else
+                    "Row position carries little information about the label."),
+    }
+
+
+# --------------------------------------------------------------------------
 # Summary, for the reports
 # --------------------------------------------------------------------------
 def describe_schema(df: pd.DataFrame, target: str, how: str) -> dict:
@@ -346,6 +412,7 @@ def describe_schema(df: pd.DataFrame, target: str, how: str) -> dict:
     y = df[target].astype(int)
     coded = sum(1 for c in df.columns if re.fullmatch(r"[A-Z]\d+", str(c).upper()))
     return {
+        "target_low_confidence": how.startswith("LOW CONFIDENCE"),
         "n_rows": int(len(df)),
         "n_columns": int(df.shape[1]),
         "target_column": target,

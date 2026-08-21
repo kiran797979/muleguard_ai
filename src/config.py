@@ -292,7 +292,18 @@ BAND_LOW_MAX = 400            # fallback only — see above
 BAND_MEDIUM_MAX = 750         # fallback only — see above
 DERIVE_BANDS_FROM_THRESHOLDS = True
 
-PRECISION_TARGET = 0.90       # HIGH-band cutoff chosen to hold precision >= this
+# The HIGH band triggers an AUTOMATED FREEZE on a real customer's money, with no
+# human in the loop. A 0.90 target means accepting one wrong freeze in ten, which
+# is the wrong bar for an action nobody signs off. 0.99 says: auto-freeze only
+# where we expect fewer than one error in a hundred, and push everything less
+# certain into the review queue where a false positive costs an OTP prompt
+# instead of someone's rent.
+#
+# Chosen on that argument and set before re-running, not by trying values until
+# the false-positive count reached zero. `precision_target_met_in_folds_pct` in
+# 03_metrics.json records how often the target was actually reachable on inner
+# data; if that falls, the number to distrust is this one.
+PRECISION_TARGET = 0.99       # HIGH-band cutoff chosen to hold precision >= this
 RECALL_QUEUE_PRECISION = 0.30 # second operating point for the analyst review
                               # queue: accept more false positives to catch more
                               # mules, since a reviewed alert costs minutes while

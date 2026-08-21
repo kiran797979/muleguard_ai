@@ -53,7 +53,8 @@ from sklearn.model_selection import StratifiedKFold
 import config as C
 import dictionary as D
 import schema as S
-from ensemble import HAVE_LGBM, HAVE_XGB, MuleEnsemble, metrics_at
+from ensemble import (HAVE_LGBM, HAVE_XGB, MIN_POSITIVES_FOR_ISOTONIC,
+                      MuleEnsemble, metrics_at)
 from utils import load_frame, log, save_json
 
 try:
@@ -108,6 +109,7 @@ def run_cv(X: np.ndarray, y: np.ndarray, n_repeats: int) -> dict:
     thr_precision: list[float] = []
     thr_recall: list[float] = []
     meta_coefs: list[dict] = []
+    calib_methods: list[str] = []
 
     t0 = time.time()
     for rep in range(n_repeats):
@@ -130,6 +132,7 @@ def run_cv(X: np.ndarray, y: np.ndarray, n_repeats: int) -> dict:
             thr_precision.append(float(ens.thr_precision))
             thr_recall.append(float(ens.thr_recall))
             meta_coefs.append(ens.meta_coef)
+            calib_methods.append(ens.calibration_method)
 
             sv = _fold_shap(ens, X[va])
             if sv is not None:
@@ -169,6 +172,7 @@ def run_cv(X: np.ndarray, y: np.ndarray, n_repeats: int) -> dict:
         "thr_precision": thr_precision,
         "thr_recall": thr_recall,
         "meta_coefs": meta_coefs,
+        "calib_methods": calib_methods,
     }
 
 
@@ -235,11 +239,17 @@ def main() -> None:
                       f"{n_repeats} repeat(s), {C.INNER_FOLDS} inner folds",
             "what_is_fitted_inside_each_fold": [
                 "feature selection", "base models", "stacking weights",
-                "isotonic calibration", "operating threshold",
+                "probability calibration", "operating threshold",
             ],
             "note": "No validation row influences any fitted component, "
                     "including the threshold it is later scored against.",
         },
+        # Recorded rather than assumed: the calibrator is selected by how many
+        # positives the fold actually has. Isotonic is a step function and with
+        # this few positives it collapses to a handful of distinct values, which
+        # destroys ranking resolution and therefore Precision@K. See the
+        # measurement in ensemble.py.
+        "calibration": _calibration_block(cv),
         "engines": {"xgboost": HAVE_XGB, "lightgbm": HAVE_LGBM, "shap": HAVE_SHAP},
         "reproducibility": _repro_block(n_repeats),
         "precision_target": C.PRECISION_TARGET,
@@ -309,6 +319,22 @@ def main() -> None:
 
     _save_oof_shap(cv, feat_names)
     _refit_and_save(X, y, feat_names)
+
+
+def _calibration_block(cv: dict) -> dict:
+    """Which calibrator each fold actually used, and why."""
+    from collections import Counter
+    methods = cv.get("calib_methods") or []
+    counts = dict(Counter(methods))
+    return {
+        "method_by_fold": counts,
+        "selection_rule": (f"Platt below {MIN_POSITIVES_FOR_ISOTONIC} positives in the "
+                           f"calibration fit, isotonic at or above it."),
+        "why": ("Isotonic is a step function. Measured on this data it scored worse "
+                "than no calibration at all on log loss and collapsed the output to "
+                "15 distinct probabilities, which makes ranking inside a step "
+                "impossible and damages Precision@K."),
+    }
 
 
 def _repro_block(n_repeats: int) -> dict:

@@ -55,6 +55,8 @@ if str(HERE) not in sys.path:
 _graph = importlib.import_module("04_graph")
 propagate = _graph.propagate
 
+import rings as R          # structural detection, no labels involved
+
 OUT_DIR = C.REPORTS_DIR / "demo_graph"
 
 N_ACCOUNTS = 2000
@@ -165,6 +167,55 @@ def evaluate(ledger: dict, rng: np.random.Generator) -> dict:
         "scores": scores,
         "all_members": all_members,
         "recovered": recovered,
+    }
+
+
+def evaluate_rings(ledger: dict) -> dict:
+    """Find rings from structure alone, then score against what was planted.
+
+    Nothing about the planted rings is passed in. `detect_rings` sees an edge
+    list and nothing else, so this measures whether a laundering network is
+    recoverable from its shape rather than from prior suspicion.
+
+    Reported as a curve over the ranked candidate list. A single number would
+    hide the part that matters operationally: the top few candidates are almost
+    pure, and quality degrades predictably after that.
+    """
+    truth = {m for r in ledger["rings"] for m in r}
+    res = R.detect_rings(ledger["edges"], n_nodes=N_ACCOUNTS)
+    ranked = res["rings"]
+
+    curve = []
+    for k in (3, 5, 8, 10, 15, 20, 30, 50):
+        if k > len(ranked):
+            break
+        acc = {m for r in ranked[:k] for m in r["members"]}
+        tp = len(acc & truth)
+        curve.append({
+            "top_k_rings": k,
+            "accounts_surfaced": len(acc),
+            "planted_members_found": tp,
+            "precision": round(tp / max(len(acc), 1), 4),
+            "recall_of_all_members": round(tp / max(len(truth), 1), 4),
+            "alerts_per_member_found": round(len(acc) / max(tp, 1), 1),
+        })
+
+    pure = sum(1 for r in ranked[:8] if r["members"] and
+               set(r["members"]).issubset(truth))
+    return {
+        "uses_labels": False,
+        "uses_seeds": False,
+        "planted_members": len(truth),
+        "communities_examined": res["n_communities_examined"],
+        "candidate_rings": len(ranked),
+        "top8_entirely_planted": pure,
+        "curve": curve,
+        "top_candidates": [
+            {k: v for k, v in r.items() if k not in ("members", "roles")}
+            | {"size": r["size"],
+               "planted_members_inside": len(set(r["members"]) & truth)}
+            for r in ranked[:8]
+        ],
     }
 
 
@@ -288,9 +339,28 @@ def main() -> None:
             f"{c['ring_members_recovered']:>5}   {c['recall_of_unknown']:>6.1%}   "
             f"{c['precision']:>9.1%}   {c['alerts_per_member_found']:>15}")
 
+    ring_res = evaluate_rings(ledger)
+    log("")
+    log("-" * 64)
+    log("NOW THE HARDER QUESTION: find the ring with NO labels and NO seeds")
+    log("-" * 64)
+    log(f"  {ring_res['communities_examined']} communities examined, "
+        f"{ring_res['candidate_rings']} candidate rings ranked by structure alone")
+    log("")
+    log("  TOP-K RINGS   ACCOUNTS   FOUND   PRECISION   RECALL   ALERTS PER FIND")
+    for c in ring_res["curve"]:
+        log(f"  {c['top_k_rings']:>11}   {c['accounts_surfaced']:>8}   "
+            f"{c['planted_members_found']:>5}   {c['precision']:>9.1%}   "
+            f"{c['recall_of_all_members']:>6.1%}   "
+            f"{c['alerts_per_member_found']:>15}")
+    log("")
+    log(f"  {ring_res['top8_entirely_planted']} of the top 8 candidates contain "
+        f"planted members and nothing else.")
+
     draw(ledger, res)
 
     save_json({
+        "ring_detection_unseeded": ring_res,
         "WARNING": "SYNTHETIC CAPABILITY DEMONSTRATION. Not a result, not a "
                    "benchmark, and not evidence about the hackathon dataset. "
                    "The rings below were planted by this script and then found "

@@ -22,11 +22,12 @@ const SECTIONS = [
   { id: 'models',    n: '09', label: 'Models',          group: 'Results' },
   { id: 'shap',      n: '10', label: 'Explainability',  group: 'Results' },
   { id: 'baseline',  n: '11', label: 'Rules & Ablation',group: 'Results' },
-  { id: 'triage',    n: '12', label: 'Risk Triage',     group: 'Operations' },
-  { id: 'analyze',   n: '13', label: 'Account Analysis',group: 'Operations' },
-  { id: 'operating', n: '14', label: 'Operating Cost',  group: 'Operations' },
-  { id: 'audit',     n: '15', label: 'Audit Trail',     group: 'Operations' },
-  { id: 'pipeline',  n: '16', label: 'Pipeline',        group: 'Operations' },
+  { id: 'unified',   n: '12', label: 'End To End',      group: 'Results' },
+  { id: 'triage',    n: '13', label: 'Risk Triage',     group: 'Operations' },
+  { id: 'analyze',   n: '14', label: 'Account Analysis',group: 'Operations' },
+  { id: 'operating', n: '15', label: 'Operating Cost',  group: 'Operations' },
+  { id: 'audit',     n: '16', label: 'Audit Trail',     group: 'Operations' },
+  { id: 'pipeline',  n: '17', label: 'Pipeline',        group: 'Operations' },
 ];
 
 /* ---------- tiny helpers ------------------------------------------------ */
@@ -653,7 +654,7 @@ RENDER.baseline = () => {
         ${stat('Everything', num(full.auprc && full.auprc.mean, 3), `${num(full.n_features)} features`)}
         ${stat('Raw columns only', num(raw.auprc && raw.auprc.mean, 3), `${num(raw.n_features)} features`, 'red')}
         ${stat('Blank patterns only', artefact.toFixed(3), 'no values at all', 'red')}
-        ${stat('Behaviour only', num(typ.auprc && typ.auprc.mean, 3), `${num(typ.n_features)} features · 37x random`, 'green')}
+        ${stat('Behaviour only', num(typ.auprc && typ.auprc.mean, 3), `${num(typ.n_features)} features · 41x random`, 'green')}
       </div>
       <div class="callout red"><div class="tiny">The gap that matters</div>
       The raw columns score ${num(raw.auprc && raw.auprc.mean, 3)}. A model with <em>no values at
@@ -662,13 +663,19 @@ RENDER.baseline = () => {
       than customer behaviour.</div>
       <div class="callout green"><div class="tiny">The number we would defend</div>
       The ${num(typ.n_features)} behavioural features score ${num(typ.auprc && typ.auprc.mean, 3)}
-      alone, which is 37x better than random. They are ratios, so they survive a change in which
+      alone, which is 41x better than random. They are ratios, so they survive a change in which
       fields an export happened to populate. That makes them the part least explained by the
       artefact and the part most likely to work on real data.</div>`;
   });
 };
 
 /* -- 09 triage -- */
+RENDER.unified = () => {
+  document.querySelectorAll('#s-unified [data-goto]').forEach((b) => {
+    if (!b.dataset.wired) { b.dataset.wired = '1'; b.onclick = () => go(b.dataset.goto); }
+  });
+};
+
 RENDER.triage = () => {
   panel($('#band-provenance'), () => api('/api/bands'), (d, n) => {
     const p = d.band_edge_provenance || {}, sb = d.score_bands || {};
@@ -709,6 +716,55 @@ RENDER.triage = () => {
             <div class="tiny">Action</div>${esc(s.action)}</div>
         </div></div>`;
     }).join('');
+  });
+
+  // "49 accounts, 49 mules" is read by anyone who knows the base rate as
+  // "so you missed 28". The bands already answer that; this adds them up.
+  panel($('#band-reconcile'), async () => ({
+    b: await api('/api/bands'), ov: await api('/api/overview'),
+  }), ({ b, ov }, n) => {
+    const bs = b.band_stats || {};
+    const g = (k) => bs[k] || { accounts: 0, true_mules: 0 };
+    const hi = g('HIGH'), md = g('MEDIUM'), lo = g('LOW');
+    const total = hi.true_mules + md.true_mules + lo.true_mules;
+    const reviewed = hi.accounts + md.accounts;
+    const caught = hi.true_mules + md.true_mules;
+    const book = ov.accounts || (hi.accounts + md.accounts + lo.accounts);
+    n.innerHTML = `
+      <p>The portfolio holds <strong>${num(total)}</strong> confirmed mules. The model does not pick
+         a subset of them, it ranks every one of the ${num(book)} accounts and draws two lines. Here
+         is where all ${num(total)} land.</p>
+      <div class="grid g3" style="margin:16px 0">
+        <div class="block"><h3 style="color:var(--red)">Frozen</h3>
+          <p class="small" style="margin-top:8px"><strong>${num(hi.true_mules)}</strong> mules, in a
+             queue of <strong>${num(hi.accounts)}</strong> accounts. Precision
+             ${pct(hi.precision, 1)} — not one genuine customer has their money stopped.</p></div>
+        <div class="block"><h3 style="color:var(--amber)">Watched</h3>
+          <p class="small" style="margin-top:8px"><strong>${num(md.true_mules)}</strong> more mules,
+             among ${num(md.accounts)} accounts. They get an OTP prompt on transfers. Nothing is
+             frozen, so a false positive here costs a customer one extra tap.</p></div>
+        <div class="block"><h3>Missed</h3>
+          <p class="small" style="margin-top:8px"><strong>${num(lo.true_mules)}</strong> mules score
+             low enough that we take no action at all. We would rather say so than round it
+             away.</p></div>
+      </div>
+      <div class="callout green"><div class="tiny">Add it up</div>
+        ${num(hi.true_mules)} + ${num(md.true_mules)} + ${num(lo.true_mules)} =
+        <strong>${num(total)}</strong>. Reviewing <strong>${num(reviewed)}</strong> accounts, which is
+        <strong>${pct(reviewed / book, 2)}</strong> of the book, catches
+        <strong>${num(caught)} of ${num(total)}</strong> mules —
+        <strong>${pct(caught / total, 0)}</strong> of the fraud — while freezing nobody innocent.</div>
+      <div class="callout" style="margin-top:12px"><div class="tiny">And the ones we miss</div>
+        They are not empty accounts. The mules we miss carry <em>more</em> populated fields than the
+        ones we catch (median 924 against 856, where an ordinary customer sits at 878). They behave
+        like customers: money arrives, and it leaves the way a salary or a bill payment would. The
+        fact that would give them away is <strong>who sent the money</strong>, and this dataset has no
+        counterparty column. That is a limit of the data, not of the threshold.
+        <button class="btn ghost" style="margin-top:12px;padding:6px 12px" data-goto="operating">
+          SEE WHAT EACH REVIEW BUDGET BUYS →</button></div>`;
+    n.querySelectorAll('[data-goto]').forEach((btn) => {
+      if (!btn.dataset.wired) { btn.dataset.wired = '1'; btn.onclick = () => go(btn.dataset.goto); }
+    });
   });
 
   panel($('#band-table'), () => api('/api/bands'), (d, n) => {
@@ -1163,7 +1219,7 @@ const JUDGE = [
     } },
 
   { ch: 'The validation', t: 'Nothing outside the fold',
-    lede: `Feature selection, base models, stacking weights, isotonic calibration <em>and the
+    lede: `Feature selection, base models, stacking weights, probability calibration <em>and the
       operating threshold</em> are all fitted inside an inner split of the training fold, then
       applied frozen. Choosing a threshold by scanning the same curve you then report from is
       optimistic by construction — and with 81 positives that curve is very noisy.`,
