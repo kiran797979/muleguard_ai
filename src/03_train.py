@@ -36,7 +36,7 @@ Outputs:
   data/oof_predictions.csv   — pooled out-of-fold probabilities
   models/muleguard_models.joblib — final models refit on all data
 
-Run:  .venv/bin/python src/03_train.py
+Run:  python src/03_train.py
 """
 
 from __future__ import annotations
@@ -44,15 +44,11 @@ from __future__ import annotations
 import os
 import time
 import warnings
-from pathlib import Path
 
 import numpy as np
 import pandas as pd
 from sklearn.metrics import average_precision_score, roc_auc_score
 from sklearn.model_selection import StratifiedKFold
-
-SRC = Path(__file__).resolve().parent
-sys.path.insert(0, str(SRC / "experiments"))
 
 import config as C
 import dictionary as D
@@ -371,12 +367,6 @@ def _save_oof_shap(cv: dict, feat_names: list[str]) -> None:
 def _refit_and_save(X: np.ndarray, y: np.ndarray, feat_names: list[str]) -> None:
     """Refit the whole ensemble on all rows, for scoring future accounts."""
     import joblib
-    from sklearn.isotonic import IsotonicRegression
-
-    sel = _feature_selector()
-    cols = sel(X, y) if sel is not None else None
-    Xf = X[:, cols] if cols is not None else X
-    sub_names = [feat_names[i] for i in cols] if cols is not None else feat_names
 
     log("Refitting final ensemble on all data ...")
     final = MuleEnsemble(seed=C.RANDOM_STATE).fit(X, y)

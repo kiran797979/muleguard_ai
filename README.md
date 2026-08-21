@@ -12,9 +12,10 @@ cross-validation metrics — not design targets.
 > **Runs on Windows, macOS, and Linux** from one source tree. `pathlib`
 > throughout, UTF-8 forced on all I/O, no shell calls, no hardcoded paths.
 
-> **👩‍⚖️ Presenting to judges?** Jump to **[§12 — Live demo walkthrough](#12--live-demo-walkthrough-for-judges)**
-> for a rehearsed, minute-by-minute script (setup, run, and the exact commands
-> that showcase the leak-free honesty story).
+> **Presenting to judges?** Start at **[§1 — Quick start](#1-quick-start)** to get it
+> running, then **[§4 — The command center](#4-the-command-center)** for the live
+> walkthrough, and **[§5 — What the pipeline measures about itself](#5-what-the-pipeline-measures-about-itself)**
+> for the integrity story.
 
 ---
 

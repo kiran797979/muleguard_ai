@@ -227,22 +227,6 @@ PARTITION_MIN_PURITY = 0.98      # share of rows in class-pure values
 MISSING_DROP_FRAC = 0.50      # drop columns missing more than this fraction
 COLLINEAR_CORR_THRESHOLD = 0.98  # de-duplicate near-identical rolling-window copies
 
-# Categorical (string) columns are encoded rather than silently coerced to NaN.
-# Low-cardinality string columns (<= this many distinct values) become one-hot
-# dummies; higher-cardinality string columns are kept only if they parse as
-# dates (-> numeric account "vintage" in days), otherwise dropped as ID/free-text.
-CATEGORICAL_MAX_CARDINALITY = 30
-DATE_PARSE_MIN_FRAC = 0.80    # a high-card column is a date if >= this frac parses
-
-# Categorical leak guard. A categorical column is a target leak if knowing the
-# category almost perfectly predicts the label. We measure this as the reduction
-# in majority-class error achieved by conditioning on the category; >= this
-# fraction means the column essentially *is* the label and is dropped BEFORE
-# one-hot encoding (so no subset of its dummies can smuggle the leak in).
-# This catches F2230 (sampling month: every normal is 'Oct25', every mule isn't
-# — a 100% dataset-assembly artifact, not a generalizable fraud signal).
-CATEGORICAL_LEAK_ERROR_REDUCTION = 0.98
-
 # --------------------------------------------------------------------------
 # DEMO MODE — for a dataset handed over live
 # --------------------------------------------------------------------------
@@ -320,19 +304,6 @@ RECALL_QUEUE_PRECISION = 0.30 # second operating point for the analyst review
 # rows influence the choice.
 TOP_K_FEATURES = 250
 
-# Per-account "Account Risk Report" cards (Stage 7/8). How many of the
-# highest-risk accounts to emit formatted reports + SHAP reason lists for, and
-# how many top reasons to show per account.
-N_RISK_REPORT_CARDS = 20
-N_REASONS_PER_CARD = 5
-
-# Recommended action per band, shown on the report cards.
-BAND_ACTIONS = {
-    "LOW": "No action — routine monitoring.",
-    "MEDIUM": "Enhanced monitoring + step-up authentication (OTP) on high-value transfers.",
-    "HIGH": "Auto-freeze outward transfers + file Suspicious Transaction Report (STR).",
-}
-
 # --------------------------------------------------------------------------
 # Graph / label-propagation (Stage 6). Only used if edge data is detected.
 # --------------------------------------------------------------------------
@@ -340,36 +311,9 @@ HOP_DECAY = {1: 0.85, 2: 0.70, 3: 0.55}   # first / second / third hop scores
 MAX_HOPS = 3
 
 # --------------------------------------------------------------------------
-# Ensemble composition
-# --------------------------------------------------------------------------
-# Isolation Forest is an UNSUPERVISED anomaly detector. On this dataset it is
-# uninformative for mule-vs-normal (measured out-of-fold AUROC ~0.26 — worse
-# than random, because "statistical outlier" != "mule" here) and it drags the
-# supervised stack down. We therefore exclude it by default; flip to True only
-# if a future dataset shows anomaly signal actually helps.
-USE_ISO_FOREST = False
-
-# LightGBM + logistic stacking. Measured across 3 CV seeds, blending LightGBM in
-# (via the meta-learner) HURTS the operating metric that matters here — recall at
-# precision >= 0.90:
-#     XGBoost solo : 0.840 +- 0.027     (wins every seed)
-#     0.7*xgb+lgbm : 0.778
-#     stacked ens. : 0.667  (the old default)
-# LightGBM's AUPRC (~0.79) is well below XGBoost's (~0.91), so averaging it in
-# pulls the strong model down. We therefore run XGBoost as the sole calibrated
-# model by default. Flip USE_LGBM=True to restore the two-model stack.
-USE_LGBM = False
-
-# --------------------------------------------------------------------------
-# Model hyper-parameters (imbalance-aware; regularization MEASURED, not guessed).
+# Model hyper-parameters (conservative, imbalance-aware defaults)
 # scale_pos_weight is computed at runtime from the actual class ratio, but a
 # fallback is provided here for reference (~9001/81 ≈ 111).
-#
-# max_depth=3 (was 5) and min_child_weight=1 come from the inner-CV grid search in
-# reports/09_hp_search.json: across 5 seeds, {max_depth:3, min_child_weight:1}
-# scores AUPRC 0.9301 ± 0.0028 vs 0.9133 for the old depth-5 default — a +0.017
-# gain that clears the seed std, so it is "meaningful", not tuning noise. Shallower
-# trees regularize better with only 81 positives (~20:1 feature-to-signal ratio).
 # --------------------------------------------------------------------------
 # Demo mode halves the tree count. This was measured, not guessed: over identical
 # folds, 400 trees gives AUPRC 0.8502 +/- 0.0686 in 182s and 200 trees gives
