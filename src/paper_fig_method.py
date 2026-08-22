@@ -88,7 +88,29 @@ def _arrow(ax, x1, y1, x2, y2, *, color=INK, lw=1.1, ls="-", mut=7):
                                  linestyle=ls, shrinkA=0, shrinkB=0, zorder=4))
 
 
+# --- fit a figure so its TIGHT bbox lands on the target width ---------------
+# bbox_inches="tight" trims to content, so a figure authored at 7.0 in can save
+# at 5.6 and then be stretched on insert, which changes its type size relative
+# to every other figure. Scaling the canvas uniformly until the trimmed output
+# measures the target keeps every label at its authored point size and means
+# Word never rescales anything.
+def _fit_width(fig, target, max_h=None, pad=0.1, tries=6):
+    for _ in range(tries):
+        fig.canvas.draw()
+        bb = fig.get_tightbbox(fig.canvas.get_renderer())
+        # savefig(bbox_inches="tight") adds pad_inches on every side, so the
+        # file is 2*pad wider than the bbox we are measuring here.
+        k = (target - 2 * pad) / bb.width
+        if max_h is not None and bb.height * k > max_h - 2 * pad:
+            k = (max_h - 2 * pad) / bb.height
+        if abs(k - 1.0) < 0.004:
+            return
+        w, h = fig.get_size_inches()
+        fig.set_size_inches(w * k, h * k)
+
+
 def _save(fig, name: str) -> None:
+    _fit_width(fig, 7.15, 4.3)          # every schematic spans the text width
     png = FIG_DIR / f"{name}.png"
     fig.savefig(png, dpi=300, bbox_inches="tight", facecolor="white")
     if TEX_FIG_DIR.exists():
@@ -112,12 +134,12 @@ def fig_behaviour() -> None:
     fig, (a1, a2) = plt.subplots(1, 2, figsize=(FULL_W, 1.95), sharey=True)
 
     t1 = np.array([0, 1, 2, 3, 4, 5, 6, 7])
-    b1 = np.array([0, 34, 41, 62, 68, 84, 89, 91])
+    b1 = np.array([0, 42, 34, 74, 66, 98, 90, 90])
     a1.plot(t1, b1, color=INK, lw=1.5, zorder=3)
     a1.fill_between(t1, b1, color=INK, alpha=0.07, zorder=1)
-    a1.scatter([1, 3, 5], [34, 62, 84], s=22, color=ACCENT, zorder=4,
+    a1.scatter([1, 3, 5], [42, 74, 98], s=22, color=ACCENT, zorder=4,
                label="credit")
-    a1.scatter([2, 4, 6], [41, 68, 89], s=22, color=WARN, zorder=4,
+    a1.scatter([2, 4, 6], [34, 66, 90], s=22, color=WARN, zorder=4,
                marker="s", label="debit")
     a1.set_title("(a) accumulating account", fontsize=8, color=INK, pad=4)
     a1.set_xlabel("time", fontsize=7)
@@ -222,7 +244,10 @@ def fig_nested_cv() -> None:
     ax.text(4, 95, "one outer fold, repeated over folds and repeats",
             fontsize=6.6, color=MUTED, style="italic")
 
-    seg_w = 15.2
+    # Five segments spanning x=4..96. At 15.2 the block stopped at x=78 and
+    # the right quarter of the canvas stayed empty. The axis fills the
+    # figure, so a tight bbox cannot crop that space away.
+    seg_w = 18.4
     for k in range(4):
         _box(ax, 4 + k * seg_w, 78, seg_w - 0.6, 11, "train", fs=6.8,
              weight="normal", ec=MUTED, tc=MUTED)
@@ -289,7 +314,15 @@ def fig_nested_cv() -> None:
 # ---------------------------------------------------------------------------
 def fig_roles() -> None:
     """Three schema-specific names decomposing to one shared role tuple."""
-    fig, ax = _canvas(FULL_W, 1.75)
+    # The composition occupies y=16..86, so a full 0-100 canvas padded it with a
+    # dead band of roughly 15 percent at top and bottom. The axis fills the
+    # figure, so a tight bbox cannot crop that away. Cropping the view to the
+    # content and shrinking the figure by the same fraction keeps the units-per-
+    # inch scale identical: every box and label stays exactly the size it was on
+    # the page, and only the whitespace goes.
+    VIEW = (11, 91)
+    fig, ax = _canvas(FULL_W, 1.75 * (VIEW[1] - VIEW[0]) / 100)
+    ax.set_ylim(*VIEW)
 
     names = ["TOT_TXNAMT_CR_L7D", "InwardAmount7Day", "sum.amt.in.7d"]
     for k, nm in enumerate(names):
@@ -315,11 +348,192 @@ def fig_roles() -> None:
     _save(fig, "fig_method_roles")
 
 
+
+
+# ---------------------------------------------------------------------------
+# 5. The unified architecture
+# ---------------------------------------------------------------------------
+def fig_unified() -> None:
+    """Four detectors, one fitted combiner, and the submission they produce.
+
+    Section V-H describes this system in prose and Section V-I measures it, but
+    the paper had no picture of it: the architecture figure predates the graph,
+    motif and temporal work and stops at account scoring. The one thing a
+    reader cannot get from the prose is that the temporal branch never reaches
+    the score. It runs beside the ranking and meets it only at the output,
+    which is why it is drawn as a separate line rather than a fifth input.
+    """
+    fig, ax = _canvas(FULL_W, 4.35)
+
+    # ---- input ----------------------------------------------------------
+    _box(ax, 32, 87, 34, 10, "TRANSACTION LEDGER",
+         sub="src  .  dst  .  amount  .  timestamp", ec=ACCENT,
+         fc=ACCENT_FILL, fs=8)
+
+    # ---- fan out --------------------------------------------------------
+    xs = [13, 37, 61, 85]
+    ax.plot([49, 49], [87, 82.5], color=INK, lw=1.1, zorder=1)
+    ax.plot([13, 85], [82.5, 82.5], color=INK, lw=1.1, zorder=1)
+    for cx in xs:
+        _arrow(ax, cx, 82.5, cx, 77.4)
+
+    # ---- the four detectors ---------------------------------------------
+    detectors = [
+        ("BEHAVIOURAL", "pass-through, retention,", "burstiness, thresholds",
+         "needs no graph at all", INK, FILL),
+        ("MOTIF", "fan-in, fan-out,", "gather-scatter, chains",
+         "needs no global structure", INK, FILL),
+        ("STRUCTURAL", "dense inside,", "sparse outward",
+         "needs a separable cell", INK, FILL),
+        ("TEMPORAL", "day-level suspicion,", "Otsu cut, max subarray",
+         "answers when, not whether", ACCENT, ACCENT_FILL),
+    ]
+    for cx, (name, s1, s2, note, ec, fc) in zip(xs, detectors):
+        ax.add_patch(Rectangle((cx - 11, 58), 22, 19, facecolor=fc,
+                               edgecolor=ec, lw=1.1, zorder=2))
+        ax.text(cx, 73.2, name, ha="center", va="center", fontsize=7.2,
+                fontweight="bold", color=ec, zorder=3)
+        ax.text(cx, 69.0, s1, ha="center", va="center", fontsize=6.1,
+                color=INK, zorder=3)
+        ax.text(cx, 65.6, s2, ha="center", va="center", fontsize=6.1,
+                color=INK, zorder=3)
+        ax.text(cx, 61.2, note, ha="center", va="center", fontsize=5.9,
+                color=MUTED, style="italic", zorder=3)
+
+    # ---- three of them converge -----------------------------------------
+    for cx in xs[:3]:
+        ax.plot([cx, cx], [58, 52], color=INK, lw=1.1, zorder=1)
+    ax.plot([13, 61], [52, 52], color=INK, lw=1.1, zorder=1)
+    _arrow(ax, 37, 52, 37, 46.4)
+
+    _box(ax, 14, 38, 46, 8, "FEATURE MATRIX",
+         sub="28 behavioural + 10 network columns", fs=7.5)
+    _arrow(ax, 37, 38, 37, 34.4)
+
+    ax.add_patch(Rectangle((14, 22), 46, 12, facecolor=ACCENT_FILL,
+                           edgecolor=ACCENT, lw=1.1, zorder=2))
+    ax.text(37, 30.7, "FITTED ENSEMBLE", ha="center", va="center",
+            fontsize=7.5, fontweight="bold", color=ACCENT, zorder=3)
+    ax.text(37, 27.2, "learns what each signal is worth,", ha="center",
+            va="center", fontsize=6.1, color=INK, zorder=3)
+    ax.text(37, 24.2, "including that one is worth nothing", ha="center",
+            va="center", fontsize=5.9, color=MUTED, style="italic", zorder=3)
+    _arrow(ax, 37, 22, 37, 15.4)
+
+    # ---- the temporal branch bypasses the score -------------------------
+    ax.plot([85, 85], [58, 10.0], color=ACCENT, lw=1.1, ls=(0, (3, 2)),
+            zorder=1)
+    _arrow(ax, 85, 10.0, 66.6, 10.0, color=ACCENT, ls=(0, (3, 2)))
+    ax.text(87, 36.0, "runs alongside;", ha="left", va="center",
+            fontsize=6.1, color=ACCENT, style="italic")
+    ax.text(87, 32.6, "never feeds", ha="left", va="center",
+            fontsize=6.1, color=ACCENT, style="italic")
+    ax.text(87, 29.2, "the score", ha="left", va="center",
+            fontsize=6.1, color=ACCENT, style="italic")
+
+    # ---- output ---------------------------------------------------------
+    _box(ax, 8, 5, 58, 10, "SUBMISSION",
+         sub="account_id  .  is_mule  .  suspicious_start  .  suspicious_end",
+         ec=ACCENT, fc=ACCENT_FILL, fs=8, subfs=6.1)
+
+    _save(fig, "fig_method_unified")
+
+
+
+
+# ---------------------------------------------------------------------------
+# 6. What happens when the file's contents are unknown
+# ---------------------------------------------------------------------------
+def fig_routing() -> None:
+    """The three routes an incoming file can take.
+
+    Section V-I argues that training needs labels and detection does not, and
+    that conflating the two is what made an unlabelled file an error rather
+    than a queue. The claim is easy to state and easy to skim; the branch
+    structure is what makes it concrete, and only one of the three routes can
+    report precision at all.
+    """
+    fig, ax = _canvas(FULL_W, 3.5)
+
+    def diamond(cx, cy, hw, hh, label, sub=None):
+        ax.add_patch(Polygon([(cx - hw, cy), (cx, cy + hh), (cx + hw, cy),
+                              (cx, cy - hh)], closed=True, facecolor=ACCENT_FILL,
+                             edgecolor=ACCENT, lw=1.1, zorder=2))
+        ax.text(cx, cy + (1.2 if sub else 0), label, ha="center", va="center",
+                fontsize=6.6, fontweight="bold", color=ACCENT, zorder=3)
+        if sub:
+            ax.text(cx, cy - 2.6, sub, ha="center", va="center", fontsize=6.6,
+                    fontweight="bold", color=ACCENT, zorder=3)
+
+    _box(ax, 36, 88, 28, 9, "UPLOADED FILE", ec=ACCENT, fc=ACCENT_FILL, fs=7.5)
+    _arrow(ax, 50, 88, 50, 81.5)
+    diamond(50, 75, 17, 5.5, "HAS A LABEL COLUMN?")
+
+    # yes, to the left
+    ax.plot([33, 12], [75, 75], color=INK, lw=1.1, zorder=1)
+    _arrow(ax, 12, 75, 12, 60.5)
+    ax.text(22, 76.6, "YES", fontsize=6.2, fontweight="bold", color=INK)
+    # no, to the right
+    ax.plot([67, 78], [75, 75], color=INK, lw=1.1, zorder=1)
+    _arrow(ax, 78, 75, 78, 66.5)
+    ax.text(70, 76.6, "NO", fontsize=6.2, fontweight="bold", color=MUTED)
+
+    ax.add_patch(Rectangle((1, 44), 22, 16, facecolor=ACCENT_FILL,
+                           edgecolor=ACCENT, lw=1.2, zorder=2))
+    ax.text(12, 55.5, "TRAIN AND", ha="center", va="center", fontsize=7.2,
+            fontweight="bold", color=ACCENT, zorder=3)
+    ax.text(12, 52.2, "MEASURE", ha="center", va="center", fontsize=7.2,
+            fontweight="bold", color=ACCENT, zorder=3)
+    ax.text(12, 48.4, "the only route where", ha="center", va="center",
+            fontsize=5.8, color=MUTED, style="italic", zorder=3)
+    ax.text(12, 46.0, "precision exists", ha="center", va="center",
+            fontsize=5.8, color=MUTED, style="italic", zorder=3)
+
+    diamond(78, 61, 19, 5.5, "SCHEMA MATCHES", "THE TRAINED MODEL?")
+
+    ax.plot([59, 44], [61, 61], color=INK, lw=1.1, zorder=1)
+    _arrow(ax, 44, 61, 44, 38.5)
+    ax.text(50, 62.6, "YES", fontsize=6.2, fontweight="bold", color=INK)
+    ax.plot([97, 99], [61, 61], color=INK, lw=1.1, zorder=1)
+    _arrow(ax, 99, 61, 99, 38.5)
+    ax.text(92, 62.6, "NO", fontsize=6.2, fontweight="bold", color=MUTED)
+
+    # Drawn longhand: _box centres its own sub line, which lands on top of the
+    # italic notes below it.
+    def route(x, w, cx, l1, l2, n1, n2):
+        ax.add_patch(Rectangle((x, 22), w, 16, facecolor=FILL, edgecolor=INK,
+                               lw=1.1, zorder=2))
+        ax.text(cx, 34.6, l1, ha="center", va="center", fontsize=7.2,
+                fontweight="bold", color=INK, zorder=3)
+        ax.text(cx, 31.4, l2, ha="center", va="center", fontsize=7.2,
+                fontweight="bold", color=INK, zorder=3)
+        ax.text(cx, 27.3, n1, ha="center", va="center", fontsize=5.8,
+                color=MUTED, style="italic", zorder=3)
+        ax.text(cx, 24.6, n2, ha="center", va="center", fontsize=5.8,
+                color=MUTED, style="italic", zorder=3)
+
+    route(31, 26, 44, "SCORE WITH", "THE DEPLOYED MODEL",
+          "calibrated bands,", "no target is read")
+    route(66, 33, 82.5, "TYPOLOGY REBUILT", "BY ROLE",
+          "directions fixed in advance,", "operating point by Otsu")
+
+    for x, top in ((12, 44), (44, 22), (82.5, 22)):
+        ax.plot([x, x], [top, 13], color=INK, lw=1.1, zorder=1)
+    ax.plot([12, 82.5], [13, 13], color=INK, lw=1.1, zorder=1)
+    _arrow(ax, 47, 13, 47, 9.5)
+    _box(ax, 28, 1, 38, 8.5, "A RANKED QUEUE, EITHER WAY", ec=ACCENT,
+         fc=ACCENT_FILL, fs=7.5)
+
+    _save(fig, "fig_method_routing")
+
+
 def main() -> None:
     fig_behaviour()
     fig_leak_gates()
     fig_nested_cv()
     fig_roles()
+    fig_unified()
+    fig_routing()
     log("method schematics complete")
 
 

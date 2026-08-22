@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>MuleGuard AI — Command Center</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2032%2032%22%3E%3Crect%20width%3D%2232%22%20height%3D%2232%22%20rx%3D%225%22%20fill%3D%22%23f5b301%22/%3E%3Ctext%20x%3D%2216%22%20y%3D%2223%22%20font-family%3D%22monospace%22%20font-size%3D%2217%22%20font-weight%3D%22bold%22%20text-anchor%3D%22middle%22%20fill%3D%22%23111%22%3EMG%3C/text%3E%3C/svg%3E">
 <link rel="stylesheet" href="/static/brutal.css">
 </head>
 <body>
@@ -141,13 +142,13 @@
 
                 <!-- customer -->
                 <line class="ln" x1="40" y1="250" x2="430" y2="250" stroke-width="2"/>
-                <path d="M40,250 L95,215 L150,205 L205,178 L260,170 L315,150 L370,143 L430,140 L430,250 Z"
+                <path d="M40,250 L95,208 L150,222 L205,180 L260,194 L315,152 L370,166 L430,166 L430,250 Z"
                       fill="var(--ink)" opacity="0.07"/>
-                <polyline class="ln" points="40,250 95,215 150,205 205,178 260,170 315,150 370,143 430,140"/>
-                <circle cx="95"  cy="215" r="5" class="grn"/><circle cx="205" cy="178" r="5" class="grn"/>
-                <circle cx="315" cy="150" r="5" class="grn"/>
-                <circle cx="150" cy="205" r="5" class="amb"/><circle cx="260" cy="170" r="5" class="amb"/>
-                <circle cx="370" cy="143" r="5" class="amb"/>
+                <polyline class="ln" points="40,250 95,208 150,222 205,180 260,194 315,152 370,166 430,166"/>
+                <circle cx="95"  cy="208" r="5" class="grn"/><circle cx="205" cy="180" r="5" class="grn"/>
+                <circle cx="315" cy="152" r="5" class="grn"/>
+                <circle cx="150" cy="222" r="5" class="amb"/><circle cx="260" cy="194" r="5" class="amb"/>
+                <circle cx="370" cy="166" r="5" class="amb"/>
                 <text class="s" x="40" y="278">Money rests. What leaves is unrelated to what arrived.</text>
                 <text class="s" x="40" y="293">The balance holds a level.</text>
 
@@ -188,15 +189,15 @@
         <header><h3>2 · The pipeline, end to end</h3>
           <span class="tag pill">WHAT WE DID</span></header>
         <div class="body">
-          <p>Seven stages. The order matters more than any single stage, and one of them is deliberately
+          <p>Ten stages, numbered as <code>src/pipeline.py</code> numbers them. The order matters more than any single stage, and one of them is deliberately
             allowed to switch itself off.</p>
 
           <figure class="figure">
             <div class="fighead"><span class="n">FIGURE 2</span>
               <h4>Dataflow: what enters each stage and what it writes out</h4></div>
             <div class="figbody">
-              <svg class="dg" viewBox="0 0 920 780" role="img" style="min-width:760px"
-                   aria-label="Vertical dataflow from a raw dataset through seven stages to an investigator queue, with the graph stage on a conditional branch and the artefact written by each stage listed on the right.">
+              <svg class="dg" viewBox="0 0 920 866" role="img" style="min-width:760px"
+                   aria-label="Vertical dataflow from a raw dataset through the stages pipeline.py runs to an investigator queue, with the graph stage on a conditional branch and the artefact written by each stage listed on the right.">
                 <text class="s2" x="660" y="86">ARTEFACTS WRITTEN</text>
 
                 <!-- input -->
@@ -227,7 +228,7 @@
 
                 <!-- stage 2 -->
                 <rect class="box" x="300" y="264" width="320" height="58"/>
-                <text class="n" x="316" y="286">STAGE 2</text>
+                <text class="n" x="316" y="286">STAGE 2/3</text>
                 <text class="t" x="316" y="307">TRADECRAFT FEATURES</text>
                 <line class="ln" x1="460" y1="322" x2="460" y2="344"/>
                 <path class="ar" d="M453,341 L467,341 L460,352 Z"/>
@@ -237,7 +238,7 @@
 
                 <!-- stage 3 -->
                 <rect class="box" x="300" y="352" width="320" height="58"/>
-                <text class="n" x="316" y="374">STAGE 3</text>
+                <text class="n" x="316" y="374">STAGE 4/5</text>
                 <text class="t" x="316" y="395">ENSEMBLE + NESTED CV</text>
                 <line class="ln" x1="460" y1="410" x2="460" y2="424"/>
                 <path class="ar" d="M453,421 L467,421 L460,432 Z"/>
@@ -257,7 +258,7 @@
                 <text class="n" x="216" y="460">YES</text>
                 <rect x="20" y="520" width="250" height="70" fill="var(--bg-inset)"
                       stroke="var(--ink-faint)" stroke-width="2.5" stroke-dasharray="7 5"/>
-                <text class="s2" x="36" y="542">STAGE 4 — CONDITIONAL</text>
+                <text class="s2" x="36" y="542">STAGE 6 — CONDITIONAL</text>
                 <text class="t2" x="36" y="562" fill="var(--ink-dim)">GRAPH PROPAGATION</text>
                 <text class="s2" x="36" y="579">risk spread across edges</text>
                 <path class="ln" d="M270,563 L290,563"/>
@@ -270,7 +271,7 @@
 
                 <!-- stage 5 -->
                 <rect class="box" x="300" y="534" width="320" height="58"/>
-                <text class="n" x="316" y="556">STAGE 5</text>
+                <text class="n" x="316" y="556">STAGE 7/8</text>
                 <text class="t" x="316" y="577">SCORE · EXPLAIN · BAND</text>
                 <line class="ln" x1="460" y1="592" x2="460" y2="614"/>
                 <path class="ar" d="M453,611 L467,611 L460,622 Z"/>
@@ -280,7 +281,7 @@
 
                 <!-- stage 6 -->
                 <rect class="box" x="300" y="622" width="320" height="58"/>
-                <text class="n" x="316" y="644">STAGE 6</text>
+                <text class="n" x="316" y="644">STAGE 9 + 10</text>
                 <text class="t" x="316" y="665">RULES + ABLATION</text>
                 <line class="ln" x1="460" y1="680" x2="460" y2="702"/>
                 <path class="ar" d="M453,699 L467,699 L460,710 Z"/>
@@ -288,14 +289,24 @@
                 <rect class="box" x="660" y="636" width="245" height="30"/>
                 <text class="s" x="672" y="655">rule_hits.csv · ablation report</text>
 
+                <!-- stages 11 and 12: the figure used to stop before these -->
+                <rect class="box" x="300" y="710" width="320" height="58"/>
+                <text class="n" x="316" y="732">STAGE 11 + 12</text>
+                <text class="t" x="316" y="753">OPERATING METRICS + EXPORT</text>
+                <line class="ln" x1="460" y1="768" x2="460" y2="790"/>
+                <path class="ar" d="M453,787 L467,787 L460,798 Z"/>
+                <path class="dash" d="M620,739 L656,739"/>
+                <rect class="box" x="660" y="724" width="245" height="30"/>
+                <text class="s" x="672" y="743">operating metrics · alert bundle</text>
+
                 <!-- output -->
-                <rect class="boxg" x="300" y="710" width="320" height="50"/>
-                <text class="t2 grn" x="460" y="740" text-anchor="middle">RANKED QUEUE + REASONS</text>
+                <rect class="boxg" x="300" y="798" width="320" height="50"/>
+                <text class="t2 grn" x="460" y="828" text-anchor="middle">RANKED QUEUE + REASONS</text>
               </svg>
             </div>
             <figcaption>Read the left column as control flow and the right column as evidence. Every stage
               writes a file, and every number quoted anywhere on this site is read back out of one of them
-              rather than typed into a slide. <strong>Stage 4 is the interesting one:</strong> it is a real
+              rather than typed into a slide. <strong>Stage 6 is the interesting one:</strong> it is a real
               branch, not decoration. If the file has no counterparty columns the stage takes itself out of
               the pipeline and records why.</figcaption>
           </figure>
@@ -387,10 +398,13 @@
                 <td>A fixed average assumes every component helps. A learned combiner can assign a
                   <em>negative</em> weight to a component that turns out to be worse than useless, and
                   report that fact rather than hide it.</td></tr>
-              <tr><td><strong>Isotonic calibration</strong></td>
+              <tr><td><strong>Platt calibration</strong><br><span class="faint">isotonic above 100 positives</span></td>
                 <td>Turns a model's raw output into an actual probability.</td>
                 <td>An uncalibrated score cannot be given to an investigator. "0.9" has to mean nine times
-                  in ten, or a review threshold is arbitrary and the false-positive rate is unpredictable.</td></tr>
+                  in ten, or a review threshold is arbitrary and the false-positive rate is unpredictable.
+                  Isotonic is the usual choice and it was measured and rejected here: as a step function on
+                  81 positives it scored worse on log loss than no calibration at all and collapsed the
+                  output to 15 distinct values, which makes ranking inside a step impossible.</td></tr>
               <tr><td><strong>Nested cross-validation</strong><br><span class="faint">threshold fitted inside the fold</span></td>
                 <td>Measures honestly what the system will do on data it has not seen.</td>
                 <td>The single most common way a fraud result is inflated is picking the decision cutoff by
@@ -671,12 +685,75 @@
               <input type="text" id="up-target" placeholder="auto-detected" style="width:260px"></label>
             <label class="field"><span class="lab">Precision</span>
               <span class="small"><input type="checkbox" id="up-full"> full precision, slower</span></label>
-            <button class="btn" id="up-go" disabled>RUN PIPELINE</button>
+            <button class="btn" id="up-go" disabled>RUN &#183; AUTO-DETECT</button>
+            <button class="btn ghost" id="up-score" disabled>FORCE SCORE ONLY</button>
           </div>
+          <p class="small dim" style="margin-top:10px"><strong>You do not have to know what is
+            in the file.</strong> The system reads the schema and decides: if it finds a label
+            column it retrains and <em>measures</em>; if it does not, it still <em>detects</em>,
+            scoring every account with the deployed model. Detection never needed labels, only
+            training does. Use <em>force score only</em> to skip retraining on a file that does
+            carry a label.</p>
           <p class="small dim" style="margin-top:12px">Each upload gets its own folder under
             <code>runs/</code>. Nothing here touches the submission's own results.</p>
         </div>
       </div>
+
+      <figure class="figure" style="margin-top:22px">
+        <div class="fighead"><span class="n">FIGURE 6</span>
+          <h4>What the system does when it does not know what it was given</h4></div>
+        <div class="figbody">
+          <svg class="dg" viewBox="0 0 980 470" role="img" style="min-width:820px"
+               aria-label="A decision tree. An uploaded file is checked for a label column. With a label the system retrains and measures. Without one it checks whether the schema matches the trained model: if it does it scores with that model, and if it does not it rebuilds mule typology from the file's own columns and flags with a parameter-free Otsu cut.">
+            <rect class="boxg" x="360" y="12" width="260" height="44"/>
+            <text class="t2 grn" x="490" y="40" text-anchor="middle">UPLOADED FILE</text>
+            <path class="ln" d="M490,56 L490,80"/><path class="ar" d="M483,77 L497,77 L490,88 Z"/>
+
+            <path class="lna" d="M400,110 L490,88 L580,110 L490,132 Z"/>
+            <text class="n amb" x="490" y="114" text-anchor="middle">HAS A LABEL COLUMN?</text>
+
+            <path class="ln" d="M400,110 L150,110 L150,168"/><path class="ar" d="M143,165 L157,165 L150,176 Z"/>
+            <text class="n grn" x="270" y="102">YES</text>
+            <path class="ln" d="M580,110 L720,110 L720,168"/><path class="ar" d="M713,165 L727,165 L720,176 Z"/>
+            <text class="n" x="640" y="102">NO</text>
+
+            <rect class="boxg" x="30" y="176" width="240" height="86"/>
+            <text class="t grn" x="150" y="204" text-anchor="middle">TRAIN AND MEASURE</text>
+            <text class="s" x="150" y="226" text-anchor="middle">full pipeline, nested CV</text>
+            <text class="s2" x="150" y="246" text-anchor="middle">precision and recall are real,</text>
+            <text class="s2" x="150" y="256" text-anchor="middle">because ground truth exists</text>
+
+            <path class="lna" d="M600,200 L720,176 L840,200 L720,224 Z"/>
+            <text class="n amb" x="720" y="196" text-anchor="middle">SCHEMA MATCHES</text>
+            <text class="n amb" x="720" y="210" text-anchor="middle">THE TRAINED MODEL?</text>
+
+            <path class="ln" d="M600,200 L440,200 L440,286"/><path class="ar" d="M433,283 L447,283 L440,294 Z"/>
+            <text class="n grn" x="520" y="192">YES</text>
+            <path class="ln" d="M840,200 L900,200 L900,286"/><path class="ar" d="M893,283 L907,283 L900,294 Z"/>
+            <text class="n" x="866" y="192">NO</text>
+
+            <rect class="boxa" x="320" y="294" width="240" height="86"/>
+            <text class="t amb" x="440" y="322" text-anchor="middle">SCORE WITH THE MODEL</text>
+            <text class="s" x="440" y="344" text-anchor="middle">calibrated probability, bands</text>
+            <text class="s2" x="440" y="364" text-anchor="middle">no labels needed to detect</text>
+
+            <rect class="box" x="640" y="294" width="300" height="86"/>
+            <text class="t" x="790" y="322" text-anchor="middle">TYPOLOGY, REBUILT BY MEANING</text>
+            <text class="s" x="790" y="344" text-anchor="middle">pass-through, bursts, speed of outflow</text>
+            <text class="s2" x="790" y="364" text-anchor="middle">flagged by a parameter-free Otsu cut</text>
+
+            <path class="ln" d="M150,262 L150,410 M440,380 L440,410 M790,380 L790,410 M150,410 L790,410 M470,410 L470,432"/>
+            <path class="ar" d="M463,429 L477,429 L470,440 Z"/>
+            <rect class="boxg" x="310" y="440" width="320" height="26"/>
+            <text class="t2 grn" x="470" y="459" text-anchor="middle">A RANKED QUEUE, EITHER WAY</text>
+          </svg>
+        </div>
+        <figcaption><strong>Nobody handing over a file will say what is in it, and it is not their job
+          to.</strong> The system reads the schema and decides. Only the left branch can report precision
+          and recall, because only there does ground truth exist; the other two produce a queue and say
+          plainly that no accuracy can be computed for them. All three end in something an investigator
+          can work.</figcaption>
+      </figure>
 
       <div id="up-status"></div>
       <div id="up-results"></div>
@@ -894,7 +971,7 @@
       <div class="secthead">
         <div class="eyebrow">09 — Learning</div>
         <h1>Model Comparison</h1>
-        <p>Three base models, stacked on inner out-of-fold predictions, then isotonically
+        <p>Three base models, stacked on inner out-of-fold predictions, then Platt
            calibrated. Every component that touches the label is fitted inside the training fold.</p>
       </div>
       <div class="panel"><header><h3>Validation scheme</h3></header>
@@ -1152,7 +1229,7 @@
       </div>
 
       <figure class="figure">
-        <div class="fighead"><span class="n">FIGURE 6</span>
+        <div class="fighead"><span class="n">FIGURE 8</span>
           <h4>One score, three actions, two operating points</h4></div>
         <div class="figbody">
           <svg class="dg" viewBox="0 0 920 300" role="img" style="min-width:720px"

@@ -42,10 +42,9 @@ data/alien_dataset.csv
 reports/exports/alerts.*
 reports/exports/case_pack_*.json
 
-# Redundant working copies of the paper. One current .docx travels; the
-# backups are local undo points.
+# The paper. v3_current is THE deliverable and is tracked; the *backup* files
+# are local undo points from editing sessions and stay out of the repository.
 reports/*backup*.docx
-reports/MuleGuard_IEEE_Paper_v3_current.docx
 
 # The organisers' LaTeX template, already vendored under paper/
 /Prototype_Template_CyberShield/

@@ -6,7 +6,8 @@ architecture diagram, the integrity-audit comparison, the SHAP ranking with real
 banking variable names, the band/triage breakdown, and a per-model ablation.
 
 All figures are written at 300 dpi to reports/figures/ and are sized for a
-single IEEE column (3.4 in) or the full text width (7.0 in).
+the Word document's single 7.25 in column: charts at 6.4 in,
+schematics at 7.0 in.
 
 Run:  python src/paper_figures.py
 """
@@ -31,10 +32,24 @@ FIG_DIR.mkdir(parents=True, exist_ok=True)
 # The LaTeX build (spconf.sty) also consumes these, as vector PDFs.
 TEX_FIG_DIR = C.ROOT / "paper" / "figures"
 
-# spconf geometry: print area 7.0 in wide, two columns of 3.39 in with a
-# 0.24 in gutter. Figures are drawn at exactly these widths so LaTeX never has
-# to rescale them and the fonts stay at their intended point size.
-COL_W, FULL_W = 3.39, 7.0
+# Two builds consume these figures and they do NOT share a geometry.
+#
+#   spconf/LaTeX : 7.0 in print area, two columns of 3.39 in.
+#   the Word doc : ONE column, 7.25 in of text width.
+#
+# The Word document is the deliverable, so the charts are drawn for it. Drawing
+# a chart at 3.39 in and dropping it into a 7.25 in column left it under half
+# the text width with 5.6 pt labels; drawing one at 7.0 in and inserting it at
+# 3.30 in (fig6) halved its type instead. Every figure is now drawn at the width
+# it is inserted at, so nothing is rescaled and the point sizes are real.
+# The Word document is IEEE two-column: 12 alternating sections, where a
+# full-width figure lives in its own 1-column span section between 2-column
+# body sections. A figure placed in a 2-column section is CLIPPED at the
+# column edge, which was happening to eight of the eleven.
+#   COL_W  : figures that sit inside a text column
+#   SPAN_W : figures given their own 1-column section
+COL_W, SPAN_W, FULL_W = 3.39, 6.4, 7.0
+CHART_W = SPAN_W
 INK, ACCENT, WARN, MUTED = "#1a1a1a", "#128a7d", "#c0392b", "#8a8a8a"
 
 plt.rcParams.update({
@@ -60,12 +75,40 @@ def _load(name: str) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+# --- fit a figure so its TIGHT bbox lands on the target width ---------------
+# bbox_inches="tight" trims to content, so a figure authored at 7.0 in can save
+# at 5.6 and then be stretched on insert, which changes its type size relative
+# to every other figure. Scaling the canvas uniformly until the trimmed output
+# measures the target keeps every label at its authored point size and means
+# Word never rescales anything.
+def _fit_width(fig, target, max_h=None, pad=0.1, tries=6):
+    for _ in range(tries):
+        fig.canvas.draw()
+        bb = fig.get_tightbbox(fig.canvas.get_renderer())
+        # savefig(bbox_inches="tight") adds pad_inches on every side, so the
+        # file is 2*pad wider than the bbox we are measuring here.
+        k = (target - 2 * pad) / bb.width
+        if max_h is not None and bb.height * k > max_h - 2 * pad:
+            k = (max_h - 2 * pad) / bb.height
+        if abs(k - 1.0) < 0.004:
+            return
+        w, h = fig.get_size_inches()
+        fig.set_size_inches(w * k, h * k)
+
+
 def _save(fig, name: str) -> None:
     """Write the PNG (for the Word build) and a vector PDF (for the LaTeX build).
 
     PDF is what spconf/pdflatex wants: it scales without resampling and keeps
     the text selectable, which matters for a print-quality submission.
     """
+    TARGET = {"fig1_architecture.png": (7.15, 4.3),
+              "fig2_integrity.png":    (3.46, 3.0),
+              "fig3_shap.png":         (3.46, 3.4),
+              "fig4_bands.png":        (3.46, 2.6),
+              "fig5_ablation.png":     (3.46, 3.0)}
+    if name in TARGET:
+        _fit_width(fig, *TARGET[name])
     out = FIG_DIR / name
     fig.savefig(out, bbox_inches="tight", dpi=300)
     TEX_FIG_DIR.mkdir(parents=True, exist_ok=True)
@@ -135,13 +178,14 @@ def fig_architecture() -> None:
     # ---- Gate bus: the verdict qualifies every stage underneath -------------
     # The bus starts right of x=16 so the raw-data arrow can drop into Stage 1
     # without crossing it; its Stage 1 tick sits inside that box regardless.
-    gate_taps = [16.0] + centres[1:]
-    arrow(48, 44, 48, GATE_Y + 0.4, WARN, dashed=True)
+    gate_taps = centres
+    ax.plot([48, 48], [44, GATE_Y], color=WARN, linewidth=0.9,
+            linestyle="--", zorder=2)
     ax.plot([gate_taps[0], gate_taps[-1]], [GATE_Y, GATE_Y], color=WARN,
             linewidth=0.9, linestyle="--", zorder=2)
     for cx in gate_taps:
         arrow(cx, GATE_Y, cx, SPINE_Y + SPINE_H, WARN, lw=0.9, dashed=True)
-    ax.text(gate_taps[-1] + 1.5, GATE_Y + 1.7,
+    ax.text(gate_taps[-1] + 1.5, GATE_Y + 2.4,
             "verdict gates interpretation of every metric below",
             fontsize=5.9, color=WARN, style="italic", ha="right", zorder=4)
 
@@ -167,9 +211,9 @@ def fig_architecture() -> None:
 
     # ---- Dictionary bus: named semantics feed three stages -----------------
     box(24, 2, 52, 11, "Data dictionary",
-        "3,924 F-codes mapped to named banking variables — what makes\n"
-        "leak classification by meaning, named features and\n"
-        "plain-English SHAP reasons possible", MUTED)
+        "3,924 F-codes mapped to named banking variables.\n"
+        "This is what makes leak classification by meaning,\n"
+        "named features and plain-English SHAP reasons possible", MUTED)
     arrow(50, 13, 50, BUS_Y - 0.4, MUTED, dashed=True)
     ax.plot([centres[0], centres[-1]], [BUS_Y, BUS_Y], color=MUTED,
             linewidth=0.9, linestyle="--", zorder=2)
@@ -192,7 +236,7 @@ def fig_integrity() -> None:
         ("Shuffled labels\n(sanity floor)", a["test_C_shuffled_labels"]["auprc"], MUTED),
         ("Random guess\n(prevalence)", prev, MUTED),
     ]
-    fig, ax = plt.subplots(figsize=(COL_W, 2.5))
+    fig, ax = plt.subplots(figsize=(COL_W, 2.6))
     ys = np.arange(len(items))[::-1]
     ax.barh(ys, [v for _, v, _ in items],
             color=[c for _, _, c in items], height=0.62, alpha=0.85)
@@ -225,11 +269,11 @@ def fig_shap() -> None:
     # own supplied variables.
     colors = [ACCENT if n.startswith("mg_") else MUTED for n in names]
 
-    fig, ax = plt.subplots(figsize=(COL_W, 2.7))
+    fig, ax = plt.subplots(figsize=(COL_W, 3.2))
     ys = np.arange(len(names))
     ax.barh(ys, vals, color=colors, height=0.7, alpha=0.9)
     ax.set_yticks(ys)
-    ax.set_yticklabels(names, fontsize=5.6)
+    ax.set_yticklabels(names, fontsize=5.4)
     ax.tick_params(axis="x", labelsize=6)
     ax.set_xlabel("mean |SHAP| contribution", fontsize=7)
     ax.set_title("Teal = engineered in this work", fontsize=7)
@@ -247,7 +291,7 @@ def fig_bands() -> None:
     counts = [stats[b]["accounts"] for b in bands]
     mules = [stats[b]["true_mules"] for b in bands]
 
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(FULL_W * 0.62, 2.3))
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(COL_W, 2.0))
     x = np.arange(3)
     ax1.bar(x, counts, color=[MUTED, "#e0a458", WARN], alpha=0.85)
     ax1.set_yscale("log"); ax1.set_xticks(x); ax1.set_xticklabels(bands)
@@ -282,13 +326,19 @@ def fig_ablation() -> None:
     means.append(e["mean"]); stds.append(e["std"])
     colors = [MUTED] * (len(means) - 1) + [ACCENT]
 
-    fig, ax = plt.subplots(figsize=(COL_W, 2.3))
+    fig, ax = plt.subplots(figsize=(COL_W, 2.4))
     x = np.arange(len(names))
     ax.bar(x, means, yerr=stds, capsize=3, color=colors, alpha=0.9,
            error_kw={"linewidth": 0.8})
     ax.axhline(m["auprc_baseline_random"], color=WARN, linestyle=":", linewidth=0.9)
-    ax.text(len(names) - 0.5, m["auprc_baseline_random"] * 1.6, "random baseline",
-            fontsize=6, color=WARN, ha="right")
+    # Offset in AXIS units, not as a multiple of the baseline. The baseline is
+    # 0.0089, so "* 1.6" moved the label 0.005 up a 0-1.05 axis and the dotted
+    # line struck straight through the text.
+    # Anchored left, over the isolation-forest slot: that bar is ~0.002 high so
+    # the space above the baseline there is empty. On the right the label landed
+    # on the ensemble bar, red on teal.
+    ax.text(-0.45, 0.055, "random baseline",
+            fontsize=6.5, color=WARN, ha="left", va="bottom")
     ax.set_xticks(x); ax.set_xticklabels(names, fontsize=6.8)
     ax.set_ylabel("AUPRC"); ax.set_ylim(0, 1.05)
     ax.set_title("Base models vs ensemble (mean +/- std)", fontsize=8)

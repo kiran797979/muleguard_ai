@@ -23,6 +23,7 @@ Security posture (this is a local analyst tool, not a public service):
 from __future__ import annotations
 
 import logging
+import time
 from pathlib import Path
 
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
@@ -354,7 +355,8 @@ def export_contract() -> dict:
 @app.post("/api/jobs/upload")
 async def upload_dataset(file: UploadFile = File(...),
                          target: str = Form(""),
-                         fast: bool = Form(True)) -> dict:
+                         fast: bool = Form(True),
+                         mode: str = Form("auto")) -> dict:
     """Accept a dataset from the browser and start the pipeline against it.
 
     The client's filename is used only for display; the stored file gets a
@@ -369,9 +371,42 @@ async def upload_dataset(file: UploadFile = File(...),
     finally:
         await file.close()
 
+    # Nobody handing over a file will say whether it is labelled, and it is not
+    # their job to. In "auto" the system reads the schema and decides: a label
+    # means it can retrain and MEASURE, no label means it can still DETECT with
+    # the deployed model. Failing and asking the operator to pick a button was
+    # the wrong answer to a question the system can answer itself.
+    chosen = str(mode).lower()
+    detected = None
+    if chosen == "auto":
+        detected = service.detect_target(job.stored_path)
+        chosen = "train" if detected["labelled"] else "score"
+        log.info("auto mode: %s -> %s", job.original_name, chosen)
+
+    # score does NOT retrain: it applies the deployed model to an unlabelled
+    # extract. Training needs a target column; detection does not.
+    if chosen == "score":
+        try:
+            out = service.score_file(job.stored_path)
+            out["decided"] = ("No label column found in this file, so it was "
+                              "scored with the deployed model rather than "
+                              "retrained. Detection needs no labels."
+                              ) if detected else "Scoring was requested explicitly."
+            out["target_search"] = detected
+            # This job never enters the pipeline, so leave no PENDING ghost
+            # sitting in the run list pretending work is queued.
+            job.status = "SCORED"
+            job.finished_at = time.time()
+            return jsonable({**out, "job_id": job.job_id})
+        except ValueError as exc:
+            raise HTTPException(400, str(exc)) from exc
+        except Exception as exc:
+            log.exception("score-only run failed")
+            raise HTTPException(500, f"Scoring failed: {exc}") from exc
+
     jobs.start(job, fast=bool(fast))
     log.info("started job %s for %s", job.job_id, job.original_name)
-    return jsonable(jobs.progress(job))
+    return jsonable({**jobs.progress(job), "target_search": detected})
 
 
 @app.get("/api/jobs")
@@ -406,8 +441,27 @@ def job_cancel(job_id: str) -> dict:
 # --------------------------------------------------------------------------
 # Static UI
 # --------------------------------------------------------------------------
+class _NoCacheStatic(StaticFiles):
+    """Serve the UI with caching disabled.
+
+    A browser holding an old app.js against a new index.html produces symptoms
+    that look like backend bugs: buttons that exist but do nothing, or that do
+    the wrong thing because the handler wiring them up is missing. On a local
+    single-operator server there is nothing to gain from caching.
+    """
+
+    def is_not_modified(self, response_headers, request_headers) -> bool:
+        return False
+
+    async def get_response(self, path: str, scope):
+        resp = await super().get_response(path, scope)
+        resp.headers["Cache-Control"] = "no-store, must-revalidate"
+        resp.headers["Pragma"] = "no-cache"
+        return resp
+
+
 if STATIC.exists():
-    app.mount("/static", StaticFiles(directory=str(STATIC)), name="static")
+    app.mount("/static", _NoCacheStatic(directory=str(STATIC)), name="static")
 
 
 @app.get("/")
@@ -415,4 +469,4 @@ def index() -> FileResponse:
     page = STATIC / "index.html"
     if not page.exists():
         raise HTTPException(500, "UI not found — app/static/index.html is missing")
-    return FileResponse(page)
+    return FileResponse(page, headers={"Cache-Control": "no-store, must-revalidate"})

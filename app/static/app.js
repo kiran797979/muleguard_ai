@@ -1062,15 +1062,21 @@ RENDER.operating = () => {
 };
 
 /* -- 10 pipeline -- */
+// The stages the pipeline actually runs, in src/pipeline.py order, with its
+// own labels. Three different numberings were in circulation here: this list,
+// the Figure 2 dataflow, and pipeline.py itself. Only one of them was the
+// truth, so the other two now follow it.
 const STAGES = [
-  ['00', 'Integrity audit', 'Three falsification tests. Run first, read first.'],
-  ['01', 'Clean + leak removal', 'Semantic, structural, extract hardening, separation audit.'],
-  ['02', 'Feature engineering', '29 mule-typology features + row aggregates.'],
-  ['03', 'Nested repeated CV', 'Selection, stacking, calibration, threshold — all in-fold.'],
-  ['04', 'Graph propagation', 'Self-skips: no counterparty column exists.', true],
-  ['05', 'Score + explain', '0–1000 score, derived bands, out-of-fold SHAP.'],
-  ['06', 'Risk bands', 'LOW / MEDIUM / HIGH from fitted operating points.'],
-  ['07', 'AML action', 'Freeze, escalate, prepare STR.'],
+  ['0',    'Dataset integrity audit', 'Three falsification tests. Run first, read first.'],
+  ['1',    'Cleaning + leak removal', 'Semantic, structural, extract hardening, separation audit.'],
+  ['2/3',  'Feature engineering', '29 mule-typology features + row aggregates.'],
+  ['4/5',  'Ensemble + nested CV', 'Selection, stacking, calibration, threshold — all in-fold.'],
+  ['6',    'Graph label propagation', 'Self-skips: no counterparty column exists.', true],
+  ['7/8',  'Risk score + SHAP', '0–1000 score, derived bands, out-of-fold explanations.'],
+  ['9',    'AML rule layer', 'Twelve typologies, measured against the base rate, not tuned.'],
+  ['10',   'Feature ablation', 'How much of our own score is the extract artefact.'],
+  ['11',   'Operating metrics', 'Precision@K, analyst load, extract drift.'],
+  ['12',   'EFRMS / AML export', 'Vendor-neutral alert and case-pack bundle.'],
 ];
 
 RENDER.pipeline = () => {
@@ -1340,11 +1346,13 @@ RENDER.hero = () => {
     const lat = op.scoring_latency || {};
     const rows = [
       ['portfolio', `${num(ov.accounts)} accounts`, ''],
+      ['confirmed mules', `${num(ov.mules)} accounts`, 'amber'],
       ['base rate', `${ov.prevalence_pct}%`, ''],
       ['precision', num(e.precision && e.precision.mean, 3), 'green'],
       ['false positive rate', num(e.fpr && e.fpr.mean, 4), 'green'],
       ['high-risk queue', `${num(hb.accounts)} accounts`, ''],
       ['of which real mules', `${num(hb.true_mules)} of ${num(hb.accounts)}`, 'green'],
+      ['caught in freeze band', `${num(hb.true_mules)} of ${num(ov.mules)} mules`, 'green'],
       ['scoring latency', `${num(lat.single_account_ms_median, 0)} ms`, ''],
       ['model', h.model_loaded ? 'LOADED' : 'ABSENT', h.model_loaded ? 'green' : 'red'],
     ];
@@ -1466,6 +1474,7 @@ RENDER.upload = () => {
     $('#up-chosen').innerHTML =
       `<strong>${esc(f.name)}</strong> <span class="dim">· ${(f.size / 1048576).toFixed(1)} MB</span>`;
     $('#up-go').disabled = false;
+    if ($('#up-score')) $('#up-score').disabled = false;
     drop.dataset.ready = '1';
   };
 
@@ -1477,17 +1486,19 @@ RENDER.upload = () => {
     e.preventDefault(); drop.classList.remove('over');
     input.files = e.dataTransfer.files; pick(e.dataTransfer.files);
   };
-  $('#up-go').onclick = startUpload;
+  $('#up-go').onclick = () => startUpload('auto');
+  if ($('#up-score')) $('#up-score').onclick = () => startUpload('score');
   refreshJobs();
 };
 
-async function startUpload() {
+async function startUpload(mode) {
   const input = $('#up-file');
   if (!input.files || !input.files.length) return;
   const fd = new FormData();
   fd.append('file', input.files[0]);
   fd.append('target', ($('#up-target') && $('#up-target').value.trim()) || '');
   fd.append('fast', $('#up-full').checked ? 'false' : 'true');
+  fd.append('mode', mode === 'score' ? 'score' : mode === 'train' ? 'train' : 'auto');
 
   const out = $('#up-status');
   $('#up-go').disabled = true;
@@ -1505,7 +1516,94 @@ async function startUpload() {
     $('#up-go').disabled = false;
     return;
   }
+  if (j.mode === 'SCORE_ONLY' || j.mode === 'TYPOLOGY_RANKING') {
+    // A poller left over from an earlier run would keep rewriting #up-status
+    // every 1.5 s and wipe these results off the screen.
+    if (POLL) { clearInterval(POLL); POLL = null; }
+    out.innerHTML = '';
+    if (j.mode === 'TYPOLOGY_RANKING') renderTypology(j); else renderScoreOnly(j);
+    refreshJobs();
+    $('#up-go').disabled = false;
+    if ($('#up-score')) $('#up-score').disabled = false;
+    return;
+  }
   watchJob(j.job_id);
+}
+
+function renderTypology(d) {
+  const rows = (d.top_accounts || []).slice(0, 25);
+  const cols = d.signals_built || [];
+  $('#up-status').innerHTML = `
+    <div class="panel accent">
+      <header><h3>Suspected mule accounts</h3>
+        <span class="tag pill warn">UNFAMILIAR SCHEMA</span></header>
+      <div class="body">
+        <div class="grid g3">
+          <div class="stat red"><div class="k">Flagged</div>
+            <div class="v">${num(d.accounts_flagged)}</div>
+            <div class="u">of ${num(d.rows_scored)} accounts &#183; ${d.flag_rate_pct}% of the file</div></div>
+          <div class="stat"><div class="k">Signals rebuilt</div>
+            <div class="v">${(d.signals_built || []).length}</div>
+            <div class="u">from this file's own columns</div></div>
+          <div class="stat amber"><div class="k">Cut-off</div>
+            <div class="v">${num(d.threshold && d.threshold.value, 3)}</div>
+            <div class="u">Otsu &#183; nothing tuned</div></div>
+        </div>
+        ${d.caution ? `<div class="callout" style="margin-top:14px;border-left-color:var(--amber)">
+          <div class="tiny" style="color:var(--amber)">READ THE FLAG COUNT WITH CARE</div>
+          <p class="small">${esc(d.caution)}</p></div>` : ''}
+        <div class="callout" style="margin-top:14px">
+          <div class="tiny">NO MODEL WAS USED, AND THAT IS DELIBERATE</div>
+          <p class="small">${esc(d.provenance)}</p>
+        </div>
+        <p class="small dim" style="margin-top:12px">Signals rebuilt from this file by meaning:
+          ${Object.entries(d.columns_used || {}).map(([k, v]) =>
+            `<code>${esc(k)}</code> &#8592; <code>${esc(v)}</code>`).join(' &#183; ')}</p>
+        <div class="scrollx" style="margin-top:12px"><table>${table(
+          ['Row', 'Verdict', { t: 'Rank pct', num: true }, ...cols.map((c) => ({ t: c, num: true }))],
+          rows.map((r) => [r.row,
+            `<span class="pill ${r.flagged ? 'bad' : ''}">${r.flagged ? 'SUSPECTED MULE' : 'no action'}</span>`,
+            num(r.percentile, 1),
+            ...cols.map((c) => num(r.signals[c], 2))]))}</table></div>
+        <p class="small dim" style="margin-top:10px">Every flag is the sum of the columns shown
+          beside it, so an investigator can see which behaviour drove it. The cut-off came from
+          the shape of the score distribution, not from a target alert rate.</p>
+      </div>
+    </div>`;
+}
+
+function renderScoreOnly(d) {
+  const bd = d.band_distribution || {};
+  const rows = (d.top_accounts || []).slice(0, 25);
+  $('#up-status').innerHTML = `
+    <div class="panel verify">
+      <header><h3>Scored without labels</h3>
+        <span class="tag pill ok">${num(d.rows_scored)} ACCOUNTS</span></header>
+      <div class="body">
+        ${d.decided ? `<div class="callout green"><div class="tiny">DECIDED AUTOMATICALLY</div>
+          <p class="small">${esc(d.decided)}</p></div>` : ''}
+        <div class="grid g3">
+          ${['HIGH', 'MEDIUM', 'LOW'].map((b) => `<div class="stat ${
+            b === 'HIGH' ? 'red' : b === 'MEDIUM' ? 'amber' : ''}">
+            <div class="k">${b}</div><div class="v">${num(bd[b] || 0)}</div>
+            <div class="u">accounts</div></div>`).join('')}
+        </div>
+        <p class="small dim" style="margin-top:12px">
+          ${num(d.features_matched)} of ${num(d.features_expected)} model features matched by
+          name or F-code; ${num(d.features_imputed_from_training_medians)} filled from training
+          medians.${(d.columns_not_recognised || []).length
+            ? ` ${d.columns_not_recognised.length} column(s) not recognised and ignored.` : ''}</p>
+        <div class="scrollx" style="margin-top:12px"><table>${table(
+          ['Row', { t: 'Risk score', num: true }, 'Band', 'Recommended action'],
+          rows.map((r) => [r.row, num(r.risk_score, 0),
+            `<span class="pill ${r.band === 'HIGH' ? 'bad' : r.band === 'MEDIUM' ? 'warn' : ''}">${esc(r.band)}</span>`,
+            esc(r.recommended_action)]))}</table></div>
+        <div class="callout" style="margin-top:14px">
+          <div class="tiny">WHAT THIS IS AND IS NOT</div>
+          <p class="small">${esc(d.provenance)}</p>
+        </div>
+      </div>
+    </div>`;
 }
 
 function watchJob(id) {
@@ -1526,7 +1624,14 @@ function watchJob(id) {
   POLL = setInterval(tick, 1500);
 }
 
+let LOG_OPEN = false;   // survives the poll tick that rebuilds the panel
+
 function renderJob(j) {
+  // renderJob replaces #up-status wholesale every 1500 ms, which destroyed
+  // and recreated the <details> and lost its open state. That is why the log
+  // snapped shut on click and could only be read once polling stopped.
+  const prev = $('#up-status details');
+  if (prev) LOG_OPEN = prev.open;
   const running = j.status === 'RUNNING';
   const tone = j.status === 'DONE' ? 'green' : j.status === 'FAILED' ? 'red' : 'amber';
   $('#up-status').innerHTML = `
@@ -1546,11 +1651,20 @@ function renderJob(j) {
           <h4>Pipeline failed</h4><div>${esc(j.error)}</div></div>` : ''}
         ${running ? `<button class="btn ghost" style="margin-top:12px"
            onclick="cancelJob('${esc(j.job_id)}')">CANCEL</button>` : ''}
-        <details style="margin-top:12px"><summary class="tiny"
+        <details ${LOG_OPEN ? 'open' : ''} style="margin-top:12px"><summary class="tiny"
           style="cursor:pointer;color:var(--amber)">LOG</summary>
           <pre class="uplog">${esc((j.log_tail || []).join('\n'))}</pre></details>
       </div>
     </div>`;
+  wireJobLog();
+}
+
+function wireJobLog() {
+  const det = $('#up-status details');
+  if (!det) return;
+  det.addEventListener('toggle', () => { LOG_OPEN = det.open; });
+  const pre = det.querySelector('.uplog');
+  if (det.open && pre) pre.scrollTop = pre.scrollHeight;   // newest lines in view
 }
 
 async function cancelJob(id) {
@@ -1632,13 +1746,21 @@ async function refreshJobs() {
     ['File', 'Status', { t: 'Stages', num: true }, { t: 'Elapsed', num: true }, 'Output', ''],
     d.jobs.map((j) => [
       esc(j.original_name),
-      `<span class="pill ${j.status === 'DONE' ? 'ok' : j.status === 'FAILED' ? 'bad' : 'warn'}">${esc(j.status)}</span>`,
-      `${j.stages_complete}/${j.stages_total}`,
+      `<span class="pill ${j.status === 'DONE' || j.status === 'SCORED' ? 'ok'
+        : j.status === 'FAILED' ? 'bad' : 'warn'}">${esc(j.status)}</span>`,
+      // A score-only run never enters the 10-stage pipeline, so "0/10" would
+      // read as a stalled training run rather than a finished scoring one.
+      j.status === 'SCORED' ? '<span class="dim">no pipeline</span>'
+                            : `${j.stages_complete}/${j.stages_total}`,
       num(j.elapsed_seconds, 0) + 's',
       `<code style="font-size:11px">${esc(j.workdir)}</code>`,
       j.status === 'DONE'
         ? `<button class="btn ghost" style="padding:3px 10px" onclick="showJobResults('${esc(j.job_id)}')">RESULTS</button>`
-        : '',
+        // A reload drops the poller, so a run in flight became unwatchable and
+        // its log unreadable until it finished. Re-attaching is all it needs.
+        : j.status === 'RUNNING'
+          ? `<button class="btn ghost" style="padding:3px 10px" onclick="watchJob('${esc(j.job_id)}')">WATCH</button>`
+          : '',
     ]))}</table></div>`;
 }
 
