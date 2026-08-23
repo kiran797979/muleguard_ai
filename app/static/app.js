@@ -677,6 +677,40 @@ RENDER.unified = () => {
 };
 
 RENDER.triage = () => {
+  panel($('#operating-point'), () => api('/api/operating-point'), (d, n) => {
+    const o = d.out_of_fold || {}, ci = d.bootstrap_95ci || {}, sup = d.superseded || {};
+    const old = sup.its_out_of_fold || {};
+    n.innerHTML = `
+      <p>Freezing a customer's money and ranking accounts for review are not the same
+         decision, and they do not share a cut-off. The <strong>HIGH band stays
+         precision-first</strong>, because it acts automatically with nobody in the loop.
+         Detection is scored on how many mules are found, so it gets its own point,
+         chosen on out-of-fold data.</p>
+      <div class="grid g3" style="margin-top:14px">
+        <div class="stat"><div class="k">Detection threshold</div>
+          <div class="v">${num(d.threshold, 4)}</div>
+          <div class="u">calibrated probability &#183; flags ${num(o.flagged)} of the book</div></div>
+        <div class="stat green"><div class="k">Recall, out of fold</div>
+          <div class="v">${num(o.recall, 3)}</div>
+          <div class="u">was ${Number(old.recall).toFixed(3)} at the old cut &#183; 95% CI
+            ${num((ci.recall || [])[0], 2)}&#8211;${num((ci.recall || [])[1], 2)}</div></div>
+        <div class="stat amber"><div class="k">Precision, out of fold</div>
+          <div class="v">${num(o.precision, 3)}</div>
+          <div class="u">was ${Number(old.precision).toFixed(3)} &#183; 95% CI
+            ${num((ci.precision || [])[0], 2)}&#8211;${num((ci.precision || [])[1], 2)}</div></div>
+      </div>
+      <div class="callout green" style="margin-top:14px">
+        <div class="tiny">WHY NOT A PERCENTAGE OF THE BOOK</div>
+        <p class="small">A review budget caps how many accounts can be flagged, so its recall
+          falls as mules get more common: at a 5% base rate a top-0.75% budget reaches recall
+          0.148. A probability threshold caps nothing, and its recall held at
+          <strong>0.877 from a 0.89% base rate to 10%</strong> while precision rose to 1.000.
+          The hidden validation set may well be enriched, so that invariance is the property
+          that matters.</p>
+      </div>
+      <p class="small dim" style="margin-top:12px">${esc(d.caveat || '')}</p>`;
+  });
+
   panel($('#band-provenance'), () => api('/api/bands'), (d, n) => {
     const p = d.band_edge_provenance || {}, sb = d.score_bands || {};
     n.innerHTML = `
@@ -1516,12 +1550,14 @@ async function startUpload(mode) {
     $('#up-go').disabled = false;
     return;
   }
-  if (j.mode === 'SCORE_ONLY' || j.mode === 'TYPOLOGY_RANKING') {
+  if (j.mode) {          // any label-free route returns results, not a job
     // A poller left over from an earlier run would keep rewriting #up-status
     // every 1.5 s and wipe these results off the screen.
     if (POLL) { clearInterval(POLL); POLL = null; }
     out.innerHTML = '';
-    if (j.mode === 'TYPOLOGY_RANKING') renderTypology(j); else renderScoreOnly(j);
+    if (j.mode === 'TYPOLOGY_RANKING') renderTypology(j);
+    else if (j.mode === 'FITTED_ON_SHARED_COLUMNS') renderFitted(j);
+    else renderScoreOnly(j);
     refreshJobs();
     $('#up-go').disabled = false;
     if ($('#up-score')) $('#up-score').disabled = false;
@@ -1530,13 +1566,48 @@ async function startUpload(mode) {
   watchJob(j.job_id);
 }
 
+function renderFitted(d) {
+  const rows = (d.top_accounts || []).slice(0, 25);
+  const q = d.fit_quality || {};
+  $('#up-status').innerHTML = `
+    <div class="panel accent">
+      <header><h3>Scored on the columns we share</h3>
+        <span class="tag pill warn">PARTIAL SCHEMA</span></header>
+      <div class="body">
+        <div class="grid g3">
+          <div class="stat"><div class="k">Accounts scored</div>
+            <div class="v">${num(d.rows_scored)}</div><div class="u">every row</div></div>
+          <div class="stat amber"><div class="k">Schema coverage</div>
+            <div class="v">${d.schema_coverage_pct}%</div>
+            <div class="u">${num(d.model_features_matched)} of ${num(d.model_features_expected)} model columns</div></div>
+          <div class="stat ${q.out_of_fold_auprc >= 0.3 ? 'green' : 'red'}">
+            <div class="k">What these columns can do</div>
+            <div class="v">${num(q.out_of_fold_auprc, 3)}</div>
+            <div class="u">out-of-fold AUPRC on our labelled data &#183; ${q.lift_over_base_rate}&#215; base rate</div></div>
+        </div>
+        <div class="callout" style="margin-top:14px">
+          <div class="tiny">WHY NOT THE DEPLOYED MODEL</div>
+          <p class="small">${esc(d.provenance)}</p>
+        </div>
+        <p class="small dim" style="margin-top:12px">Columns used:
+          ${(d.columns_used || []).map((c) => `<code>${esc(c)}</code>`).join(' &#183; ')}</p>
+        <div class="scrollx" style="margin-top:12px"><table>${table(
+          ['Row', { t: 'Probability', num: true }, { t: 'Rank pct', num: true }],
+          rows.map((r) => [r.row, num(r.probability, 4), num(r.percentile, 1)]))}</table></div>
+        <p class="small dim" style="margin-top:10px">Review from the top down. The out-of-fold figure
+          above is the ceiling these columns support, measured on data where we do have labels, so
+          it tells you how far to trust this queue before you work it.</p>
+      </div>
+    </div>`;
+}
+
 function renderTypology(d) {
   const rows = (d.top_accounts || []).slice(0, 25);
   const cols = d.signals_built || [];
   $('#up-status').innerHTML = `
     <div class="panel accent">
-      <header><h3>Suspected mule accounts</h3>
-        <span class="tag pill warn">UNFAMILIAR SCHEMA</span></header>
+      <header><h3>Ranked by typology &#183; unvalidated</h3>
+        <span class="tag pill warn">NO LABELS, NO MODEL</span></header>
       <div class="body">
         <div class="grid g3">
           <div class="stat red"><div class="k">Flagged</div>

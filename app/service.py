@@ -118,6 +118,19 @@ def scoring_report() -> dict:
 
 
 @lru_cache(maxsize=1)
+def operating_points() -> dict:
+    """The detection operating point, chosen out of fold in src/operating_point.py.
+
+    Deliberately separate from the action bands. The HIGH band triggers an
+    automated freeze on a real customer's money, so it is set precision-first
+    and stays there. Ranking accounts for a scored submission is a different
+    decision with a different cost, and it gets its own point.
+    """
+    return _read_json(C.REPORTS_DIR / "13_operating_points.json",
+                      "src/operating_point.py")
+
+
+@lru_cache(maxsize=1)
 def shap_global() -> dict:
     return _read_json(C.REPORTS_DIR / "05_shap_top_features.json", "Stage 7/8 (05_score_explain.py)")
 
@@ -459,6 +472,70 @@ TYPOLOGY_SIGNALS = [
 ]
 
 
+# Below this share of its schema the deployed ensemble stops being a model and
+# starts being a random number generator. Measured, not guessed: masked to 750
+# of 1,506 columns it scores AUPRC 0.937, and at 300 it scores 0.009 against a
+# 0.0089 base rate. Half the schema is the floor.
+COVERAGE_FLOOR = 0.50
+MIN_INTERSECTION = 5
+
+
+@lru_cache(maxsize=1)
+def _training_frame():
+    """The labelled feature matrix, for fitting on a partial schema."""
+    feats = C.DATA_DIR / "features.parquet"
+    if not feats.exists():
+        return None, None
+    X = pd.read_parquet(feats)
+    y = pd.read_csv(C.RAW_CSV, usecols=[C.TARGET_COL_HINT])[
+        C.TARGET_COL_HINT].astype(int).to_numpy()
+    return X, y
+
+
+def fit_on_intersection(cols_to_feats: dict, frame: "pd.DataFrame") -> dict:
+    """Fit a model on exactly the columns this file and the training data share.
+
+    A file carrying a fraction of the schema cannot be scored by the deployed
+    ensemble, but the columns it does carry are real and they are labelled in
+    our own data. Fitting on the intersection uses the relationship that
+    actually exists between those columns and the outcome, rather than the
+    directions someone assumed in advance. The out-of-fold score of that fit is
+    returned with the predictions, because a caller is entitled to know how much
+    signal the intersection really holds before acting on it.
+    """
+    import lightgbm as lgb
+    from sklearn.metrics import average_precision_score
+    from sklearn.model_selection import StratifiedKFold
+
+    X, y = _training_frame()
+    if X is None:
+        raise ValueError("features.parquet is absent, so no model can be fitted "
+                         "on the shared columns.")
+    pairs = [(c, f) for c, f in cols_to_feats.items() if f in X.columns]
+    if len(pairs) < MIN_INTERSECTION:
+        raise ValueError(f"only {len(pairs)} of this file's columns exist in the "
+                         "training data, which is too few to fit anything "
+                         "honest.")
+    tr = np.column_stack([pd.to_numeric(X[f], errors="coerce") for _, f in pairs])
+    te = np.column_stack([pd.to_numeric(frame[c], errors="coerce") for c, _ in pairs])
+
+    def _mk(yy):
+        return lgb.LGBMClassifier(
+            n_estimators=400, learning_rate=0.05, num_leaves=15,
+            min_child_samples=10, colsample_bytree=0.8, reg_lambda=1.0,
+            scale_pos_weight=(yy == 0).sum() / max((yy == 1).sum(), 1),
+            verbose=-1, random_state=42)
+
+    oof = np.zeros(len(y))
+    for a, b in StratifiedKFold(5, shuffle=True, random_state=42).split(tr, y):
+        oof[b] = _mk(y[a]).fit(tr[a], y[a]).predict_proba(tr[b])[:, 1]
+    ap = float(average_precision_score(y, oof))
+    proba = _mk(y).fit(tr, y).predict_proba(te)[:, 1]
+    return {"proba": proba, "columns": [c for c, _ in pairs],
+            "oof_auprc": round(ap, 4),
+            "oof_lift": round(ap / float(y.mean()), 1)}
+
+
 def _typology_by_role(df: "pd.DataFrame") -> tuple["pd.DataFrame", dict]:
     """Rebuild mule-typology signals from an unfamiliar schema, by meaning.
 
@@ -577,6 +654,51 @@ def score_file(path, top: int = 100) -> dict:
     # A file from another bank shares no column names with the training data,
     # so the deployed ensemble cannot score it. That is a limit of the model,
     # not of the problem: the typology is arithmetic and can still be measured.
+    # Three tiers, decided by how much of its own schema the model actually has.
+    coverage = len(mapping) / max(len(feat_names), 1)
+    if coverage < COVERAGE_FLOOR:
+        # The deployed ensemble is not applicable. Before falling back to
+        # assumed directions, try the honest thing: fit on the columns this
+        # file and the labelled training data genuinely share, so the weights
+        # are learned from data rather than asserted.
+        try:
+            got = fit_on_intersection(mapping, df)
+        except Exception as exc:
+            got = None
+            fit_note = str(exc)
+        if got is not None:
+            prob = np.asarray(got["proba"], dtype=float).ravel()
+            order = np.argsort(-prob)[:max(1, min(int(top), 1000))]
+            rows = [{"row": int(i), "probability": jsonable(float(prob[i])),
+                     "percentile": round(float((prob < prob[i]).mean()) * 100, 1)}
+                    for i in order]
+            return {
+                "mode": "FITTED_ON_SHARED_COLUMNS",
+                "rows_scored": int(len(df)),
+                "columns_used": got["columns"],
+                "model_features_matched": len(mapping),
+                "model_features_expected": len(feat_names),
+                "schema_coverage_pct": round(coverage * 100, 1),
+                "fit_quality": {
+                    "out_of_fold_auprc": got["oof_auprc"],
+                    "lift_over_base_rate": got["oof_lift"],
+                    "meaning": "How well these shared columns separate mules in "
+                               "OUR labelled data, measured out of fold. It is "
+                               "the ceiling on what to expect here, and it is "
+                               "reported so the number is not taken on trust.",
+                },
+                "top_accounts": rows,
+                "provenance":
+                    f"This file carries {len(mapping)} of the {len(feat_names)} "
+                    "columns the deployed ensemble was fitted on, which is "
+                    "below the half-schema floor where that ensemble stops "
+                    "being better than chance. Rather than score with it "
+                    "anyway, a model was fitted on the columns this file and "
+                    "our labelled data share, so the weights come from measured "
+                    "relationships and not from assumed ones. With no labels in "
+                    "this file, no precision or recall can be computed for it.",
+            }
+
     if len(mapping) < 40:
         sig, prov = _typology_by_role(df)
         if sig.empty:
@@ -628,9 +750,18 @@ def score_file(path, top: int = 100) -> dict:
                         ) if flagged.mean() > 0.20 else None,
             "top_accounts": rows,
             "provenance":
+                "UNVALIDATED. This ranking assumes the textbook direction of "
+                "each signal, and on a given book those directions can be "
+                "inverted: measured on one 213-account extract, this path "
+                "scored AUROC 0.476, worse than chance, because mules there "
+                "moved smaller amounts over shorter distances than ordinary "
+                "customers. The same extract reaches AUPRC 0.743 once a label "
+                "column is supplied and the weights are learned instead of "
+                "assumed. If you have labels, even for part of the book, supply "
+                "them: that is the difference between detection and a guess. "
                 "This file shares no schema with the training data, so the "
                 "trained ensemble was NOT used and no calibrated probability "
-                "exists. Accounts are FLAGGED by mule typology rebuilt from this "
+                "exists. Accounts are RANKED by mule typology rebuilt from this "
                 "file's own columns: pass-through, retention, counterparty "
                 "spread, round-amount share, burstiness and speed of outflow, "
                 "each resolved by meaning rather than by name. A rank is not a "

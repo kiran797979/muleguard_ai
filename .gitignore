@@ -48,3 +48,9 @@ reports/*backup*.docx
 
 # The organisers' LaTeX template, already vendored under paper/
 /Prototype_Template_CyberShield/
+
+# Blind hold-out: 1,506 real feature values for 213 real customers, 13 of them
+# labelled as mules, keyed by row_number back into the supplied dataset. Same
+# reasoning as reports/exports/alerts.csv - it is joinable, so it identifies
+# people. Regenerate locally with src/make_blind_holdout.py.
+reports/blind_holdout/

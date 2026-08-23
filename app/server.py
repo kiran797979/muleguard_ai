@@ -209,6 +209,11 @@ def bands() -> dict:
 # --------------------------------------------------------------------------
 # Accounts
 # --------------------------------------------------------------------------
+@app.get("/api/operating-point")
+def operating_point() -> dict:
+    return jsonable(service.operating_points())
+
+
 @app.get("/api/accounts")
 def accounts(band: str | None = None, limit: int = 50, offset: int = 0,
              mules_only: bool = False) -> dict:
