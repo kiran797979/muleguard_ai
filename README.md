@@ -36,9 +36,28 @@ same seed, same model — only the 10 motif/ring/role columns vary. That is an
 ablation, not an assertion.
 
 On the supplied hackathon file, which is account-level with no transactions, the
-behavioural half runs alone: **precision 0.989**, a 49-account freeze band that
-is **100% mules**, and **91% of all mules** caught by reviewing 2.6% of the book.
+behavioural half runs alone. Nested repeated cross-validation over the full
+1,506-feature schema, 9,082 out-of-fold predictions:
+
+| | |
+|---|---|
+| **AUPRC** | **0.893** — 100× the base rate |
+| ROC-AUC | 0.972 |
+| Brier | 0.0023 |
+
 Read those next to [what that benchmark can and cannot prove](docs/data-integrity.md).
+
+**Freezing and detecting are different decisions, so they get different
+cut-offs.** The freeze band acts on a customer's money with nobody in the loop,
+so it stays precision-first: 49 accounts, all 49 mules. Ranking for review costs
+an analyst a few minutes, so it uses a threshold chosen on out-of-fold F1 —
+**precision 0.855, recall 0.877**, against 1.000 and 0.321 at the freeze cut.
+That is **71 mules found instead of 26**, on the same data.
+
+A review budget would have been tidier and was rejected on measurement: a
+percentage caps how many accounts can be flagged, so its recall falls to 0.148
+at a 5% base rate, while the threshold holds **0.877 from a 0.89% base rate to
+10%**.
 
 ---
 
@@ -120,6 +139,36 @@ confirmed mules to start from, structural ring detection needs the cell to be
 
 ---
 
+## It works out what you gave it
+
+Nobody handing over a file says whether it carries labels, and it isn't their
+job to. The system reads the schema and picks one of three routes.
+
+| what arrives | what happens | what you get |
+|---|---|---|
+| a label column | retrains and **measures** | precision and recall are real, because ground truth exists |
+| no label, familiar schema | **scores** with the deployed ensemble | calibrated probabilities and bands |
+| no label, foreign schema | rebuilds the typology **by role** | a ranked queue, and a warning that it is unvalidated |
+
+The floor between routes two and three is measured, not chosen. Masked to 750 of
+1,506 columns the ensemble scores 0.937; masked to 300 it scores **0.009 against
+a 0.0089 baseline**. Below half the schema its output is not a weak signal, it is
+noise wearing a probability — so it refuses rather than obliges.
+
+`reports/inference_schema.csv` is the contract: all 1,506 columns in fitted
+order, each with its banking name and the training median a missing column
+silently becomes. `src/inference_schema.py transform()` reports coverage instead
+of quietly imputing.
+
+**The third route is honest about its limits.** It assumes each signal's
+textbook direction, and on one 213-account extract those directions were
+inverted — it scored AUROC 0.476, worse than chance, because mules there moved
+smaller amounts over shorter distances. The same extract reaches **AUPRC 0.743
+once labels are supplied** and the weights are learned. That gap is the argument
+for learning over asserting, and the UI says so on screen.
+
+---
+
 ## What separates a mule from a customer
 
 <p align="center">
@@ -160,6 +209,8 @@ version would have scored better and meant less.
 | **Won't hide a failed component** | The isolation forest scores below random and is reported with its **−0.44** stacking weight. 7 of 12 AML rules don't beat the base rate, and that is published. |
 | **Won't report accuracy** | At this prevalence it rewards doing nothing. |
 | **Won't file anything** | Case packs assemble what a human needs. The decision and the filing stay with the human. |
+| **Won't score what it can't score** | Below half its schema the ensemble is measurably random, so it declines and says why instead of returning a confident number. |
+| **Won't call a ranking a detection** | With no labels it cannot verify a signal's direction, so the typology route is labelled unvalidated and cites the extract where it scored worse than chance. |
 | **Won't act alone indefinitely** | The drift policy has a written condition — weighted PSI ≥ 0.50 — under which **automated freezing stops until a human signs off**. |
 
 ---
@@ -175,6 +226,7 @@ version would have scored better and meant less.
 | **[Operations](docs/operations.md)** | The command centre, alert export, label noise, and the drift re-selection policy |
 | **[Reference](docs/reference.md)** | Pipeline stages, layout, limitations, and how to reproduce every number |
 | [SETUP.md](SETUP.md) | Environment, prerequisites, troubleshooting |
+| `reports/inference_schema.csv` | The input contract: 1,506 columns, banking names, training medians |
 | [reports/00_INTEGRITY.md](reports/00_INTEGRITY.md) | The integrity finding in full |
 
 ---
@@ -185,13 +237,25 @@ version would have scored better and meant less.
 benchmark evidence is published alongside the claims — `reports/bench_unified/`
 and `reports/bench_saml/` — so anyone can re-run `src/bench_unified.py` and check.
 
+**Validation you can reproduce but not download.** `src/make_blind_holdout.py`
+carves 213 rows — 13 mules spread across all three extract months — *before*
+fitting, then trains on the remaining 8,869. The model that has never seen those
+rows scores **AUPRC 0.933**, finding 9 of 13 at perfect precision in the top 9.
+The set itself is git-ignored: it carries real feature values for 213 real
+customers and is joinable by row. Run the script and it rebuilds locally.
+
+Read that 0.933 as a ceiling. Every negative in the source data comes from the
+October extract and every positive from September, November or December, so any
+hold-out drawn from it inherits that structure and a model can still separate
+the classes by recognising the extraction run. No split of this data escapes it.
+
 The supplied dataset, the trained model and the generated alert records are
 **deliberately git-ignored**. The alerts name real accounts as suspected mules
 and are joinable back to the source file by row index, so they are not published.
 Everything here regenerates them from your own copy of the data.
 
 ```bash
-python -m pytest tests/ -q      # 143 tests
+python -m pytest tests/ -q      # 151 tests
 ```
 
 Runs on Windows, macOS and Linux from one source tree: `pathlib` throughout,

@@ -116,7 +116,7 @@ def add_mule_typology_features(df: pd.DataFrame, report: dict) -> list[str]:
         lo, hi = np.minimum(cr, db), np.maximum(cr, db)
         put(f"mg_passthrough_{win.lower()}", pd.Series(lo / (hi + EPS), index=df.index),
             f"credit/debit symmetry over last {win} — 1.0 means every rupee in "
-            f"left again, the defining conduit signature")
+            f"left again — the money is passing straight through")
         put(f"mg_net_flow_{win.lower()}", _safe_ratio(cr - db, cr + db),
             f"normalised net flow over last {win}; near 0 = pure pass-through")
 

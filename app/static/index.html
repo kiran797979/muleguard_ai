@@ -111,8 +111,8 @@
             recruited, coerced, or paid a small cut. To the bank's systems it looks like a customer in good
             standing, because it <em>is</em> one.</p>
           <p style="margin-top:12px">So the question is never "is this account fake". It is
-            <strong>"is this account behaving like a container or like a conduit"</strong>. A customer
-            accumulates. A conduit passes through. That single distinction is what the entire feature layer
+            <strong>"is this money being kept, or just passing through"</strong>. A customer
+            keeps what arrives. A mule account forwards it, usually within hours. That single distinction is what the entire feature layer
             is built to measure.</p>
 
           <div class="grid g2f" style="margin-top:16px">
@@ -122,7 +122,7 @@
                 unrelated to what arrived, to counterparties that repeat. Balance holds a level.</p>
             </div>
             <div class="block">
-              <h3 style="color:var(--amber)">What a conduit's money does</h3>
+              <h3 style="color:var(--amber)">What a mule account's money does</h3>
               <p class="small" style="margin-top:8px">Arrives and leaves at close to the same value inside
                 a short window. Balance spikes and drains rather than being held. Money in roughly equals
                 money out, which is arithmetic, and arithmetic transfers between banks and countries.</p>
@@ -134,10 +134,10 @@
               <h4>The only difference a bank can actually see</h4></div>
             <div class="figbody">
               <svg class="dg" viewBox="0 0 920 330" role="img" style="min-width:720px"
-                   aria-label="Two balance-over-time charts. A customer's balance climbs in steps and is held. A conduit's balance spikes and drains repeatedly, with money in matching money out.">
+                   aria-label="Two balance-over-time charts. A customer's balance climbs in steps and stays up. A mule account's balance jumps then empties again and again, with money in matching money out.">
                 <line x1="460" y1="12" x2="460" y2="300" stroke="var(--rule-soft)" stroke-width="2"/>
                 <text class="n" x="30" y="30">A CUSTOMER</text>
-                <text class="n" x="490" y="30" fill="var(--amber)">A CONDUIT</text>
+                <text class="n" x="490" y="30" fill="var(--amber)">A MULE ACCOUNT</text>
                 <text class="s2" x="18" y="160" transform="rotate(-90 18 160)" text-anchor="middle">BALANCE</text>
 
                 <!-- customer -->
@@ -152,7 +152,7 @@
                 <text class="s" x="40" y="278">Money rests. What leaves is unrelated to what arrived.</text>
                 <text class="s" x="40" y="293">The balance holds a level.</text>
 
-                <!-- conduit -->
+                <!-- mule account -->
                 <line class="ln" x1="490" y1="250" x2="890" y2="250" stroke-width="2"/>
                 <path d="M490,250 L520,250 L523,120 L555,118 L558,247 L650,247 L653,110 L685,108 L688,245
                          L780,245 L783,115 L815,113 L818,246 L890,246 L890,250 L490,250 Z"
@@ -175,7 +175,7 @@
                 <text class="s2" x="712" y="320">MONEY OUT</text>
               </svg>
             </div>
-            <figcaption><strong>Neither account is unusual on paper.</strong> Same KYC, same address, same
+            <figcaption><strong>The word for the right-hand shape is "pass-through": money arrives and leaves almost immediately, so the account is a pipe rather than a wallet.</strong> <strong>Neither account is unusual on paper.</strong> Same KYC, same address, same
               salary history. The separation is entirely in the shape of the line, and that shape is
               arithmetic, which is why it survives being moved to another bank, another country, or another
               schema. Every behavioural feature in the system is a way of measuring the difference between
@@ -704,7 +704,7 @@
           <h4>What the system does when it does not know what it was given</h4></div>
         <div class="figbody">
           <svg class="dg" viewBox="0 0 980 470" role="img" style="min-width:820px"
-               aria-label="A decision tree. An uploaded file is checked for a label column. With a label the system retrains and measures. Without one it checks whether the schema matches the trained model: if it does it scores with that model, and if it does not it rebuilds mule typology from the file's own columns and flags with a parameter-free Otsu cut.">
+               aria-label="A decision tree. An uploaded file is checked for a label column. With a label the system retrains and measures. Without one it checks whether the schema matches the trained model: if it does it scores with that model, and if it does not it rebuilds the mule behaviour signals from the file's own columns and flags with a parameter-free Otsu cut.">
             <rect class="boxg" x="360" y="12" width="260" height="44"/>
             <text class="t2 grn" x="490" y="40" text-anchor="middle">UPLOADED FILE</text>
             <path class="ln" d="M490,56 L490,80"/><path class="ar" d="M483,77 L497,77 L490,88 Z"/>
@@ -738,7 +738,7 @@
             <text class="s2" x="440" y="364" text-anchor="middle">no labels needed to detect</text>
 
             <rect class="box" x="640" y="294" width="300" height="86"/>
-            <text class="t" x="790" y="322" text-anchor="middle">TYPOLOGY, REBUILT BY MEANING</text>
+            <text class="t" x="790" y="322" text-anchor="middle">BEHAVIOUR SIGNALS, REBUILT BY MEANING</text>
             <text class="s" x="790" y="344" text-anchor="middle">pass-through, bursts, speed of outflow</text>
             <text class="s2" x="790" y="364" text-anchor="middle">flagged by a parameter-free Otsu cut</text>
 
@@ -813,7 +813,7 @@
           <div class="body">
             <ul class="tight">
               <li>Four-layer leakage defence, each layer verifiable in <code>reports/01_clean_report.json</code>.</li>
-              <li>29 named mule-typology features, every one defensible in plain English.</li>
+              <li>29 named mule-behaviour features, every one defensible in plain English.</li>
               <li>Nested repeated cross-validation — selection, stacking, calibration <em>and</em> the operating threshold are fitted inside the training fold.</li>
               <li>Band edges derived from the model's own fitted operating points, not hand-picked constants.</li>
               <li>SHAP explanations from the same out-of-fold model that produced the score.</li>
@@ -951,7 +951,7 @@
     <section id="s-features" hidden>
       <div class="secthead">
         <div class="eyebrow">08 — Domain knowledge</div>
-        <h1>Mule-Typology Features</h1>
+        <h1>Mule Behaviour Features</h1>
         <p>A mule receives money and pushes it straight back out, holds almost nothing, in bursts,
            through digital rails, often at odd hours, on an account whose owner profile does not
            match the volume. Each feature measures one clause of that sentence.</p>
@@ -1056,7 +1056,7 @@
                 retention, burstiness, threshold-hugging. <strong>Needs no graph at all.</strong>
                 Built from the raw ledger, so it works on any bank's transaction table rather than
                 only on a file that already contains the aggregates.</p></div>
-            <div class="block"><h3>Motif</h3>
+            <div class="block"><h3>Money-movement shapes</h3>
               <p class="small" style="margin-top:8px">The shape of a laundering event inside a time
                 window: fan-in, fan-out, gather-scatter, chains. <strong>Needs no global
                 structure</strong>, so it still works when a recruited account keeps paying its bills
@@ -1071,7 +1071,7 @@
                 asks for, scored by temporal IoU.</p></div>
           </div>
           <div class="callout"><div class="tiny">And they are combined by a model, not by us</div>
-            Motif and ring scores enter as ordinary columns and the ensemble learns what each is
+            Movement-shape and ring scores enter as ordinary columns and the ensemble learns what each is
             worth. A hand-weighted blend would be us asserting the weights. This makes the data
             assert them — <strong>including that a signal is worth nothing</strong>, which is exactly
             what happened to the isolation forest and got published rather than quietly dropped.</div>
@@ -1083,7 +1083,7 @@
           <h4>The unified architecture: ledger in, submission out</h4></div>
         <div class="figbody">
           <svg class="dg" viewBox="0 0 980 560" role="img" style="min-width:820px"
-               aria-label="A transaction ledger feeds four parallel detectors. Behavioural, motif and structural evidence join into one feature matrix scored by a fitted ensemble; temporal localisation runs alongside and supplies the activity window. Both meet in the submission.">
+               aria-label="A transaction ledger feeds four parallel detectors. Behavioural, movement-shape and structural evidence join into one feature matrix scored by a fitted ensemble; temporal localisation runs alongside and supplies the activity window. Both meet in the submission.">
             <!-- input -->
             <rect class="boxg" x="330" y="10" width="320" height="60"/>
             <text class="t2 grn" x="490" y="36" text-anchor="middle">TRANSACTION LEDGER</text>
@@ -1106,7 +1106,7 @@
             <text class="s2" x="34" y="201">needs no graph at all</text>
 
             <rect class="box" x="266" y="124" width="200" height="88"/>
-            <text class="n" x="280" y="146">MOTIF</text>
+            <text class="n" x="280" y="146">MOVEMENT SHAPE</text>
             <text class="s" x="280" y="166">fan-in, fan-out,</text>
             <text class="s" x="280" y="181">gather-scatter, chains</text>
             <text class="s2" x="280" y="201">needs no global structure</text>
@@ -1189,7 +1189,7 @@
         <div class="body">
           <p>The obvious question about any graph component is whether it does anything the
              behavioural features were not already doing. Same ledger, same split, same seed, same
-             model. The only difference is whether the 10 motif, ring and role columns exist.</p>
+             model. The only difference is whether the 10 movement-shape, ring and role columns exist.</p>
           <div class="scrollx" style="margin-top:14px"><table>
             <thead><tr><th>Measure</th><th class="num">Behavioural only</th>
               <th class="num">+ network</th><th class="num">Difference</th></tr></thead>

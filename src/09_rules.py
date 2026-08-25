@@ -69,7 +69,7 @@ def build_rules(df: pd.DataFrame):
 
     add("R01", "Pass-through account",
         "Credits and debits match almost exactly over a week, so the account is "
-        "a conduit rather than a wallet.",
+        "a pipe rather than a wallet.",
         lambda: (lambda v: None if v is None else v >= 0.90)(col("mg_passthrough_7d")))
 
     add("R02", "Turnover far exceeds balance",
@@ -114,7 +114,7 @@ def build_rules(df: pd.DataFrame):
         lambda: _pair("ACCT_OPN_DAYS", "mg_turnover_over_balance_7d",
                       lambda a, t: (a <= 90) & (t >= 10)))
 
-    add("R11", "Pure conduit",
+    add("R11", "Pure pass-through",
         "Net flow near zero while throughput is high: everything that came in "
         "went straight back out.",
         lambda: _pair("mg_net_flow_7d", "mg_turnover_over_balance_7d",

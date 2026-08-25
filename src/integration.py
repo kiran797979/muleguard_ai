@@ -50,7 +50,7 @@ SCHEMA_VERSION = "1.0"
 # taxonomy, not an official FATF or regulator code list, and are labelled as
 # such in the export so nobody downstream mistakes them for a standard.
 TYPOLOGY = {
-    "R01": "Pass-through conduit",
+    "R01": "Pass-through account",
     "R02": "Turnover disproportionate to balance",
     "R03": "Sudden account activation",
     "R04": "Cash-out dominance",
@@ -60,7 +60,7 @@ TYPOLOGY = {
     "R08": "Spike-and-drain balance profile",
     "R09": "Customer profile mismatch",
     "R10": "New account rapid turnover",
-    "R11": "Pure conduit, net flow near zero",
+    "R11": "Pure pass-through, net flow near zero",
     "R12": "Conduit on a single rail",
     "ML": "Model-derived behavioural risk (no single rule fired)",
 }

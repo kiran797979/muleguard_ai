@@ -168,7 +168,7 @@ RENDER.overview = () => {
       stat('Accounts', num(d.accounts)) +
       stat('Confirmed mules', num(d.mules), `${d.prevalence_pct}% prevalence`, 'red') +
       stat('Raw columns', num(d.raw_columns), 'F-coded banking variables') +
-      stat('Features after cleaning', num(d.features_after_cleaning), 'incl. 29 typology features', 'amber');
+      stat('Features after cleaning', num(d.features_after_cleaning), 'incl. 29 behaviour features', 'amber');
     const g = $('#graph-body'), t = $('#graph-tag');
     const gr = d.graph || {};
     t.innerHTML = `<span class="pill ${gr.status === 'SKIPPED' ? 'warn' : 'ok'}">${esc(gr.status || '—')}</span>`;
@@ -474,7 +474,7 @@ RENDER.features = () => {
   panel($('#feature-stats'), () => api('/api/features'), (d, n) => {
     n.className = 'grid g4';
     n.innerHTML =
-      stat('Typology features', num(d.typology_feature_count), 'each defensible in English', 'amber') +
+      stat('Behaviour features', num(d.typology_feature_count), 'each defensible in English', 'amber') +
       stat('Payment rails modelled', String((d.channels_used || []).length), (d.channels_used || []).join(' · ')) +
       stat('Occupation-deviation cols', num(d.occupation_deviation_columns), 'profile-mismatch family') +
       stat('Total features', num(d.total_features), 'into model selection', 'green');
@@ -636,7 +636,7 @@ RENDER.baseline = () => {
             num(r.accounts_flagged), num(r.mules_caught), pct(r.precision, 1),
             `<span class="pill ${good ? 'ok' : bad ? 'bad' : 'warn'}">${num(r.lift_over_prevalence, 1)}x</span>`];
         }))}</table></div>
-      <div class="callout red"><div class="tiny">Why the typology fails here</div>
+      <div class="callout red"><div class="tiny">Why these behaviour signals fail here</div>
       Ordinary customers have a median 7-day pass-through of <strong>0.776</strong>. Mules have
       <strong>0.622</strong>. They pass through <em>less</em> money than everybody else, so the
       textbook signature is inverted on this dataset. Two rules survived contact with the data:
@@ -1103,7 +1103,7 @@ RENDER.operating = () => {
 const STAGES = [
   ['0',    'Dataset integrity audit', 'Three falsification tests. Run first, read first.'],
   ['1',    'Cleaning + leak removal', 'Semantic, structural, extract hardening, separation audit.'],
-  ['2/3',  'Feature engineering', '29 mule-typology features + row aggregates.'],
+  ['2/3',  'Feature engineering', '29 mule-behaviour features + row aggregates.'],
   ['4/5',  'Ensemble + nested CV', 'Selection, stacking, calibration, threshold — all in-fold.'],
   ['6',    'Graph label propagation', 'Self-skips: no counterparty column exists.', true],
   ['7/8',  'Risk score + SHAP', '0–1000 score, derived bands, out-of-fold explanations.'],
@@ -1227,7 +1227,7 @@ const JUDGE = [
       is defensible to an auditor in plain English.`,
     load: () => api('/api/features'),
     paint: (d) => `<div class="flow">${[
-        ['Pass-through', 'credits ≈ debits → a conduit, not a wallet'],
+        ['Pass-through', 'money in ≈ money out → the account is a pipe, not a wallet'],
         ['Turnover / balance', 'moves many multiples of what it holds'],
         ['Burst', 'weekly rate ≫ monthly → sudden activation'],
         ['Cash-out', 'digital in, cash out → the layering handoff'],
@@ -1606,7 +1606,7 @@ function renderTypology(d) {
   const cols = d.signals_built || [];
   $('#up-status').innerHTML = `
     <div class="panel accent">
-      <header><h3>Ranked by typology &#183; unvalidated</h3>
+      <header><h3>Ranked by behaviour signals &#183; unvalidated</h3>
         <span class="tag pill warn">NO LABELS, NO MODEL</span></header>
       <div class="body">
         <div class="grid g3">
