@@ -209,6 +209,11 @@ def bands() -> dict:
 # --------------------------------------------------------------------------
 # Accounts
 # --------------------------------------------------------------------------
+@app.get("/api/scale")
+def scale() -> dict:
+    return jsonable(service.scale_benchmark())
+
+
 @app.get("/api/operating-point")
 def operating_point() -> dict:
     return jsonable(service.operating_points())

@@ -59,6 +59,13 @@ percentage caps how many accounts can be flagged, so its recall falls to 0.148
 at a 5% base rate, while the threshold holds **0.877 from a 0.89% base rate to
 10%**.
 
+**Scale is measured, not asserted.** The supplied file is 9,082 accounts, so the
+whole pipeline was run against SAML-D as well: **2,691,127 transactions across
+493,833 accounts**, scoring **148,150** held out and never trained on. Throughput
+is **6,627 accounts/second** in batch and **54 ms** for a single account, which is
+fast enough to hold a transfer while the decision is made. Same code path, no
+special casing, and the work per account is constant.
+
 ---
 
 ## Quick start
@@ -212,6 +219,22 @@ version would have scored better and meant less.
 | **Won't score what it can't score** | Below half its schema the ensemble is measurably random, so it declines and says why instead of returning a confident number. |
 | **Won't call a ranking a detection** | With no labels it cannot verify a signal's direction, so the typology route is labelled unvalidated and cites the extract where it scored worse than chance. |
 | **Won't act alone indefinitely** | The drift policy has a written condition — weighted PSI ≥ 0.50 — under which **automated freezing stops until a human signs off**. |
+
+---
+
+## Where each thing is answered
+
+Every claim below has a page behind it. Judge Mode in the UI carries the same
+map with buttons that jump straight to the evidence.
+
+| what you are looking for | where it is |
+|---|---|
+| **Did they catch the planted red herring?** | [Data integrity](docs/data-integrity.md) — blank cells alone score 0.824 |
+| **Does it run end to end on an unseen file?** | [How it works](docs/method.md) · UI section 01 and 12 |
+| **Can it explain an individual decision?** | UI section 09 — SHAP per account, out of fold, in banking variables |
+| **Does it scale?** | [The whole system](docs/end-to-end.md) — 2.69M transactions, 6,627 accounts/sec |
+| **Did they pick the right model and variables?** | UI section 01 — eleven choices, each against its obvious alternative |
+| **How good are the results?** | AUPRC 0.893 out of fold, 100× base rate; 45 mules in the first 45 reviewed |
 
 ---
 

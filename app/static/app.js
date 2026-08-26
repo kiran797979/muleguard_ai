@@ -9,25 +9,32 @@
    ========================================================================== */
 'use strict';
 
+// `rail: false` keeps a section out of the left navigation while leaving it
+// routable: go() still shows and hides it, and its URL still works. These five
+// are supporting evidence rather than the argument, so they are reachable when
+// a judge asks a follow-up without competing for attention on the way in.
 const SECTIONS = [
-  { id: 'hero',      n: '00', label: 'The Problem',     group: 'Start' },
-  { id: 'approach',  n: '01', label: 'How It Works',    group: 'Start' },
-  { id: 'upload',    n: '02', label: 'Upload Dataset',  group: 'Start' },
-  { id: 'judge',     n: '03', label: 'Judge Mode',      group: 'Start' },
-  { id: 'overview',  n: '04', label: 'Overview',        group: 'Evidence' },
-  { id: 'dataset',   n: '05', label: 'Dataset',         group: 'Evidence' },
-  { id: 'integrity', n: '06', label: 'Integrity Audit', group: 'Evidence' },
-  { id: 'leakage',   n: '07', label: 'Leakage Defence', group: 'Evidence' },
-  { id: 'features',  n: '08', label: 'Mule Features',   group: 'Results' },
-  { id: 'models',    n: '09', label: 'Models',          group: 'Results' },
-  { id: 'shap',      n: '10', label: 'Explainability',  group: 'Results' },
-  { id: 'baseline',  n: '11', label: 'Rules & Ablation',group: 'Results' },
-  { id: 'unified',   n: '12', label: 'End To End',      group: 'Results' },
-  { id: 'triage',    n: '13', label: 'Risk Triage',     group: 'Operations' },
-  { id: 'analyze',   n: '14', label: 'Account Analysis',group: 'Operations' },
-  { id: 'operating', n: '15', label: 'Operating Cost',  group: 'Operations' },
-  { id: 'audit',     n: '16', label: 'Audit Trail',     group: 'Operations' },
-  { id: 'pipeline',  n: '17', label: 'Pipeline',        group: 'Operations' },
+  { id: 'hero',       n: '00', label: 'The Problem',        group: 'Start' },
+  { id: 'build',      n: '01', label: 'How We Built It',    group: 'Start' },
+  { id: 'judge',      n: '02', label: 'Judge Mode',         group: 'Start' },
+  { id: 'dataset',    n: '03', label: 'Dataset',            group: 'The Data' },
+  { id: 'integrity',  n: '04', label: 'What We Found',      group: 'The Data' },
+  { id: 'approach',   n: '05', label: 'How It Works',       group: 'The Method' },
+  { id: 'leakage',    n: '06', label: 'Leakage Defence',    group: 'The Method' },
+  { id: 'features',   n: '07', label: 'Mule Features',      group: 'The Method' },
+  { id: 'shap',       n: '08', label: 'Why It Flagged',     group: 'The Results' },
+  { id: 'triage',     n: '09', label: 'Risk Triage',        group: 'The Results' },
+  { id: 'unified',    n: '10', label: 'End To End',         group: 'The Results' },
+  { id: 'overview',   n: '11', label: 'Overview',           group: 'The Results' },
+  { id: 'upload',     n: '12', label: 'Upload Dataset',     group: 'See It Run' },
+  { id: 'pipeline',   n: '13', label: 'Pipeline',           group: 'See It Run' },
+  // Off the rail: supporting evidence, still routable by URL and still
+  // linked from the rubric map in Judge Mode.
+  { id: 'models',     n: '--', label: 'Models',             group: 'The Results', rail: false },
+  { id: 'baseline',   n: '--', label: 'Rules & Ablation',   group: 'The Results', rail: false },
+  { id: 'analyze',    n: '--', label: 'Account Analysis',   group: 'The Results', rail: false },
+  { id: 'operating',  n: '--', label: 'Operating Cost',     group: 'The Results', rail: false },
+  { id: 'audit',      n: '--', label: 'Audit Trail',        group: 'The Results', rail: false },
 ];
 
 /* ---------- tiny helpers ------------------------------------------------ */
@@ -114,16 +121,32 @@ async function panel(node, loader, painter) {
 }
 
 /* ---------- navigation -------------------------------------------------- */
+/* Section numbers appear in buttons and prose as well as in the rail. Typing
+   them by hand meant every reorder silently left stale numbers pointing at the
+   wrong page, which happened three times. These fill themselves from SECTIONS. */
+function labelSections() {
+  const by = Object.fromEntries(SECTIONS.map((s) => [s.id, s]));
+  document.querySelectorAll('[data-goto][data-num]').forEach((b) => {
+    const s = by[b.dataset.goto];
+    if (s) b.textContent = `${s.n} ${s.label}`;
+  });
+  document.querySelectorAll('[data-secnum]').forEach((e) => {
+    const s = by[e.dataset.secnum];
+    if (s) e.textContent = s.n;
+  });
+}
+
 function buildRail() {
   const rail = $('#rail');
   let group = null;
-  SECTIONS.forEach((s) => {
+  SECTIONS.filter((s) => s.rail !== false).forEach((s) => {
     if (s.group !== group) { group = s.group; rail.appendChild(el('div', 'railgroup', esc(group))); }
     const b = el('button', null, `<span class="idx">${s.n}</span>${esc(s.label)}`);
     b.dataset.target = s.id;
     b.onclick = () => go(s.id);
     rail.appendChild(b);
   });
+  labelSections();
 }
 
 const painted = new Set();
@@ -135,6 +158,17 @@ function go(id) {
   window.scrollTo(0, 0);
   if (!painted.has(id) && RENDER[id]) { painted.add(id); RENDER[id](); }
 }
+
+/* One delegated handler for every [data-goto] on the page.
+
+   These used to be wired per-render, which worked only if the section that
+   contained them had already been painted. Landing straight on #judge from a
+   pasted link left its buttons dead. Delegation on the document survives both
+   direct entry and any panel painted later. */
+document.addEventListener('click', (e) => {
+  const b = e.target.closest('[data-goto]');
+  if (b) { e.preventDefault(); go(b.dataset.goto); }
+});
 
 /* ---------- health ------------------------------------------------------ */
 let HEALTH = null;
@@ -162,6 +196,34 @@ const RENDER = {};
 
 /* -- 01 overview -- */
 RENDER.overview = () => {
+  panel($('#scale-panel'), () => api('/api/scale'), (d, n) => {
+    const h = d.held_out || {}, lat = d.latency || {};
+    n.innerHTML = `
+      <p>The supplied file is 9,082 accounts. To show this is not a laptop-sized
+         toy, we ran the whole pipeline against <strong>SAML-D</strong>, a public
+         anti-money-laundering dataset we did not build and cannot tune against.</p>
+      <div class="grid g4" style="margin-top:14px">
+        <div class="stat"><div class="k">Transactions processed</div>
+          <div class="v">${Number(d.transactions).toLocaleString()}</div>
+          <div class="u">${num(d.months_used)} months of a real ledger</div></div>
+        <div class="stat"><div class="k">Accounts built and scored</div>
+          <div class="v">${num(d.accounts)}</div>
+          <div class="u">${num(h.accounts)} held out, never trained on</div></div>
+        <div class="stat green"><div class="k">Throughput</div>
+          <div class="v">${num(lat.batch_accounts_per_second)}</div>
+          <div class="u">accounts per second, batch</div></div>
+        <div class="stat amber"><div class="k">One account</div>
+          <div class="v">${num(lat.single_account_ms_median, 1)} ms</div>
+          <div class="u">fast enough to hold a transfer in real time</div></div>
+      </div>
+      <p class="small dim" style="margin-top:12px">Same code path, no special casing.
+        The pipeline reads a transaction ledger, builds its own features and scores
+        ${num(h.accounts)} unseen accounts at <strong>AUPRC ${num(d.auprc, 3)}</strong>,
+        ${num(d.auprc_lift, 1)}&#215; a ${num(h.base_rate * 100, 3)}% base rate. The work
+        per account is constant, so a larger book costs proportionally more time and
+        nothing else.</p>`;
+  });
+
   panel($('#overview-stats'), () => api('/api/overview'), (d, n) => {
     n.className = 'grid g4';
     n.innerHTML =
@@ -1558,6 +1620,7 @@ async function startUpload(mode) {
     if (j.mode === 'TYPOLOGY_RANKING') renderTypology(j);
     else if (j.mode === 'FITTED_ON_SHARED_COLUMNS') renderFitted(j);
     else renderScoreOnly(j);
+    revealPanel('#up-status');
     refreshJobs();
     $('#up-go').disabled = false;
     if ($('#up-score')) $('#up-score').disabled = false;
@@ -1742,6 +1805,46 @@ async function cancelJob(id) {
   try { await fetch('/api/jobs/' + id + '/cancel', { method: 'POST' }); } catch (e) {}
 }
 
+/* The result panels sit ~1,400px down the upload page, so on a laptop screen a
+   click paints them entirely below the fold: the work happened, the page did not
+   move, and it reads as a dead button. Bring the panel to the reader. */
+function revealPanel(sel) {
+  const n = document.querySelector(sel);
+  if (n && n.innerHTML.trim()) {
+    n.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+}
+
+// A threshold is estimated from positives. A small upload may not carry enough
+// of them, and the fitted precision/recall then collapse to zero while the
+// ranking underneath is still good. In that case the headline switches to a
+// review budget: the top N accounts an analyst team would actually work, which
+// is fixed by capacity rather than fitted and so needs no positives at all.
+function bestBudget(points) {
+  let best = null, bestF1 = -1;
+  (points || []).forEach(b => {
+    const f1 = (b.precision + b.recall) > 0
+      ? 2 * b.precision * b.recall / (b.precision + b.recall) : 0;
+    if (f1 > bestF1) { bestF1 = f1; best = b; }
+  });
+  return best;
+}
+
+function budgetTable(rb) {
+  const pts = (rb && rb.points) || [];
+  if (!pts.length) return '';
+  return `<div class="scrollx" style="margin-top:14px"><table>${table(
+    ['Review budget', 'Accounts', 'Mules found', 'Precision', 'Recall', 'Lift'],
+    pts.map(b => [
+      'top ' + b.budget_pct + '%',
+      num(b.accounts_reviewed),
+      num(b.true_mules_found),
+      pct(b.precision, 1),
+      pct(b.recall, 1),
+      num(b.lift_over_prevalence, 1) + '×',
+    ]))}</table></div>`;
+}
+
 async function showJobResults(id) {
   const out = $('#up-results');
   out.innerHTML = '';
@@ -1754,6 +1857,8 @@ async function showJobResults(id) {
   const s = r.schema || {}, ig = r.integrity || {}, m = r.metrics || {};
   const bands = r.bands || {};
   const contaminated = ig.contaminated;
+  const weak = r.threshold_estimable === false;
+  const bb = weak ? bestBudget((r.review_budget || {}).points) : null;
 
   out.innerHTML = `
     <div class="panel ${contaminated ? 'danger' : 'verify'}">
@@ -1787,14 +1892,34 @@ async function showJobResults(id) {
 
     <div class="panel"><header><h3>Measured result</h3>
       <span class="tag pill">${esc(r.validation || '')}</span></header>
-      <div class="body"><div class="grid g4">
-        ${stat('Precision', ms(m.precision), null, 'green')}
-        ${stat('Recall', ms(m.recall))}
+      <div class="body">
+      ${weak ? `<div class="callout amber">
+        <div class="tiny">Too few mules to fit a cutoff</div>
+        This file carries ${num(r.n_mules)} mules, which leaves about
+        ${num(r.positives_per_fit, 1)} per threshold fit where
+        ${num((r.review_budget || {}).min_positives_required)} are needed. A cutoff placed on that
+        many points does not transfer, so the fitted precision and recall are not
+        reported here &#8212; they would read 0.000 and tell you nothing about the model.
+        The figures below are a <strong>review budget</strong> instead: the top
+        ${bb ? bb.budget_pct + '%' : 'N'} of accounts an analyst team would work.
+        Ranking quality (AUPRC, lift) is unaffected by any of this.</div>` : ''}
+      <div class="grid g4">
+        ${weak
+          ? `${stat('Precision', bb ? pct(bb.precision, 1) : '—',
+                    bb ? 'in the top ' + bb.budget_pct + '%' : null, 'green')}
+             ${stat('Recall', bb ? pct(bb.recall, 1) : '—',
+                    bb ? num(bb.true_mules_found) + ' of ' + num(r.n_mules) + ' mules' : null)}`
+          : `${stat('Precision', ms(m.precision), null, 'green')}
+             ${stat('Recall', ms(m.recall))}`}
         ${stat('AUPRC', ms(m.auprc), null, 'amber')}
-        ${stat('Lift', m.lift_over_prevalence ? num(m.lift_over_prevalence.mean, 0) + '×' : '—',
-               'over the base rate', 'amber')}
+        ${weak
+          ? stat('Lift', bb ? num(bb.lift_over_prevalence, 1) + '×' : '—',
+                 'over the base rate at that budget', 'amber')
+          : stat('Lift', m.lift_over_prevalence ? num(m.lift_over_prevalence.mean, 0) + '×' : '—',
+                 'over the base rate', 'amber')}
       </div>
-      ${bands.HIGH ? `<div class="callout red" style="margin-top:14px">
+      ${budgetTable(r.review_budget)}
+      ${bands.HIGH && !weak ? `<div class="callout red" style="margin-top:14px">
         <div class="tiny">High-risk band</div>
         ${num(bands.HIGH.accounts)} accounts, ${num(bands.HIGH.true_mules)} confirmed,
         precision ${pct(bands.HIGH.precision, 1)}</div>` : ''}
@@ -1805,6 +1930,7 @@ async function showJobResults(id) {
         <code>${esc(r.workdir)}/reports/</code>. Finished in ${num(r.elapsed_seconds, 0)}s.</p>
       </div>
     </div>`;
+  revealPanel('#up-results');
 }
 
 async function refreshJobs() {

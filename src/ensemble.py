@@ -70,6 +70,11 @@ def metrics_at(y: np.ndarray, p: np.ndarray, thr: float) -> dict:
     }
 
 
+# How many true positives must sit above a threshold before its precision is
+# treated as evidence rather than as an accident of a small fold.
+MIN_TP_SUPPORT = 5
+
+
 def pick_threshold(y: np.ndarray, p: np.ndarray, target: float) -> tuple[float, bool]:
     """Choose an operating threshold. Must only ever be called on INNER data.
 
@@ -83,7 +88,16 @@ def pick_threshold(y: np.ndarray, p: np.ndarray, target: float) -> tuple[float, 
     prec, rec, thr = precision_recall_curve(y, p)
     if len(thr) == 0:
         return 0.5, False
-    ok = np.where(prec[:-1] >= target)[0]
+    # A precision estimate is only worth acting on if enough positives sit above
+    # the threshold to support it. With two positives in an inner fold, "precision
+    # 1.0" is one lucky row, and the point it selects generalises to nothing: on a
+    # 500-account extract carrying 10 mules this path met the 0.99 target in every
+    # fold and then flagged a single account on the outer fold, which was wrong.
+    # Precision 0.000, recall 0.000, while the ranking itself held AUROC 0.725.
+    # Below MIN_TP_SUPPORT true positives the target is treated as unreachable and
+    # the best-F1 point is used instead.
+    n_pos_above = (rec[:-1] * y.sum()).round()
+    ok = np.where((prec[:-1] >= target) & (n_pos_above >= MIN_TP_SUPPORT))[0]
     if len(ok) > 0:
         best = ok[int(np.argmax(rec[:-1][ok]))]
         return float(thr[best]), True

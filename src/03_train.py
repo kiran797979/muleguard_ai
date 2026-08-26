@@ -51,6 +51,7 @@ from sklearn.metrics import average_precision_score, roc_auc_score
 from sklearn.model_selection import StratifiedKFold
 
 import config as C
+import ensemble
 import dictionary as D
 import schema as S
 from ensemble import (HAVE_LGBM, HAVE_XGB, MIN_POSITIVES_FOR_ISOTONIC,
@@ -280,6 +281,59 @@ def main() -> None:
         "note": "Band edges in Stage 7/8 are these values x 1000. They are not "
                 "chosen to flatter the result; they are the thresholds the "
                 "ensemble fitted before seeing any validation row.",
+    }
+
+    # A second operating point that does not have to be fitted.
+    #
+    # A threshold is estimated from positives, so on a small extract there may
+    # not be enough of them to estimate one. With 10 mules over 5 outer and 2
+    # inner folds each threshold fit sees about 4 positives, and a cutoff placed
+    # on 4 points does not transfer: on such a file the fitted point flagged two
+    # accounts and caught none, reporting precision 0.000 and recall 0.000 while
+    # the ranking underneath was still worth 6x the base rate. Reporting only
+    # the fitted point makes a usable model look dead.
+    #
+    # A review budget is the alternative a bank actually runs: analysts work the
+    # top N accounts per day. It is fixed by capacity rather than fitted, needs
+    # no positives, and is invariant to prevalence, so it is comparable across
+    # files with different mule rates.
+    n_pos_per_fit = float(y.sum()) * (1 - 1 / C.N_FOLDS) / max(C.INNER_FOLDS, 1)
+    estimable = n_pos_per_fit >= ensemble.MIN_TP_SUPPORT
+
+    order = np.argsort(-cv["pooled_p"])
+    prevalence = float(y.mean())
+    budgets = []
+    for pct in (0.5, 1.0, 2.0, 5.0, 10.0):
+        k = max(1, int(np.ceil(len(y) * pct / 100)))
+        if k > len(y):
+            continue
+        picked = order[:k]
+        tp = int(y[picked].sum())
+        prec = tp / k
+        budgets.append({
+            "budget_pct": pct,
+            "accounts_reviewed": k,
+            "threshold": round(float(cv["pooled_p"][picked[-1]]), 6),
+            "true_mules_found": tp,
+            "precision": round(prec, 4),
+            "recall": round(tp / max(int(y.sum()), 1), 4),
+            "lift_over_prevalence": round(prec / prevalence, 2) if prevalence else 0.0,
+        })
+
+    results["review_budget"] = {
+        "points": budgets,
+        "fitted_threshold_is_estimable": bool(estimable),
+        "positives_per_threshold_fit": round(n_pos_per_fit, 1),
+        "min_positives_required": ensemble.MIN_TP_SUPPORT,
+        "why": "Precision and recall at a fixed review capacity, measured on "
+               "pooled out-of-fold scores. Needs no threshold to be fitted, so "
+               "it stays meaningful when the positive count is too small to "
+               "estimate one." + ("" if estimable else
+               " On this file the fitted threshold is NOT estimable "
+               f"({n_pos_per_fit:.1f} positives per fit, {ensemble.MIN_TP_SUPPORT} "
+               "required), so these budget rows are the operating point to "
+               "report and the fitted precision/recall above should be "
+               "disregarded."),
     }
 
     # What the stacker learned about each base model. Published because the

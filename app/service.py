@@ -118,6 +118,20 @@ def scoring_report() -> dict:
 
 
 @lru_cache(maxsize=1)
+def scale_benchmark() -> dict:
+    """Throughput and volume, from the run on a public dataset we did not build."""
+    out = _read_json(C.REPORTS_DIR / "bench_unified" / "unified_saml.json",
+                     "src/bench_unified.py")
+    try:
+        out["latency"] = _read_json(
+            C.REPORTS_DIR / "10_operating_metrics.json",
+            "src/10_operating_metrics.py").get("scoring_latency", {})
+    except Exception:
+        out["latency"] = {}
+    return out
+
+
+@lru_cache(maxsize=1)
 def operating_points() -> dict:
     """The detection operating point, chosen out of fold in src/operating_point.py.
 

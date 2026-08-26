@@ -297,6 +297,17 @@ def results(job: Job) -> dict:
                           ("precision", "recall", "auprc", "auroc",
                            "lift_over_prevalence")}
         out["validation"] = m.get("validation", {}).get("scheme")
+        # A fitted threshold needs positives to fit on. When the upload is too
+        # small to supply them the fitted precision and recall collapse to zero
+        # and say nothing about the model, so the review-budget point is sent
+        # as the headline instead and the fitted one is marked unusable.
+        rb = m.get("review_budget") or {}
+        if rb:
+            out["review_budget"] = rb
+            out["threshold_estimable"] = rb.get(
+                "fitted_threshold_is_estimable", True)
+            out["positives_per_fit"] = rb.get("positives_per_threshold_fit")
+            out["n_mules"] = m.get("n_mules")
     if sc:
         out["bands"] = sc.get("band_stats", {})
     return out
