@@ -54,3 +54,6 @@ reports/*backup*.docx
 # reasoning as reports/exports/alerts.csv - it is joinable, so it identifies
 # people. Regenerate locally with src/make_blind_holdout.py.
 reports/blind_holdout/
+
+# Monitor hysteresis state — runtime, per-batch, not a source artefact.
+data/monitor_state/

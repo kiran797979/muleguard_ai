@@ -22,6 +22,7 @@ Security posture (this is a local analyst tool, not a public service):
 
 from __future__ import annotations
 
+import json
 import logging
 import time
 from pathlib import Path
@@ -193,6 +194,29 @@ def ablation() -> dict:
 def operating() -> dict:
     """Precision@K, investigator load, review budget, extract drift."""
     return jsonable(service.operating_metrics())
+
+
+@app.get("/api/monitoring")
+def monitoring(job_id: str | None = None) -> dict:
+    """Live drift assessment against the population the model was fitted on.
+
+    With no job_id this reports the quiet baseline. With one, it measures how
+    far that uploaded batch has moved and what the policy licenses in response.
+    The path is resolved from the job registry, never taken from the request.
+    """
+    path = None
+    if job_id:
+        job = jobs.get(job_id)
+        if job is None:
+            raise HTTPException(404, "No such job.")
+        path = job.stored_path
+    return jsonable(service.monitor_batch(path))
+
+
+@app.get("/api/fairness")
+def fairness() -> dict:
+    """Disparate-impact audit on wealth and cash-dependence proxies."""
+    return jsonable(service.fairness_audit())
 
 
 @app.get("/api/decisions")
@@ -407,6 +431,17 @@ async def upload_dataset(file: UploadFile = File(...),
             # sitting in the run list pretending work is queued.
             job.status = "SCORED"
             job.finished_at = time.time()
+            # Persist it. Returning the result only in this response meant the
+            # browser could paint it once and never again: a reload, or a click
+            # on another run, lost it permanently and the run list had nothing
+            # to offer a RESULTS button for.
+            try:
+                rep = job.workdir / "reports"
+                rep.mkdir(parents=True, exist_ok=True)
+                (rep / "score_result.json").write_text(
+                    json.dumps(jsonable(out), indent=2), encoding="utf-8")
+            except Exception:
+                log.exception("could not persist the score-only result")
             return jsonable({**out, "job_id": job.job_id})
         except ValueError as exc:
             raise HTTPException(400, str(exc)) from exc
@@ -429,7 +464,10 @@ def job_status(job_id: str) -> dict:
     job = jobs.get(job_id)
     if job is None:
         raise HTTPException(404, "No such job. It may have expired with a restart.")
-    return jsonable({**jobs.progress(job), "log_tail": jobs.tail(job, 25)})
+    # 25 lines was showing 13% of a 194-line run and silently dropping the
+    # rest, so the log looked like it was scrolling away. The whole thing is
+    # a few KB; send it and let the browser scroll.
+    return jsonable({**jobs.progress(job), "log_tail": jobs.tail(job, 5000)})
 
 
 @app.get("/api/jobs/{job_id}/results")

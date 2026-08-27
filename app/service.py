@@ -688,6 +688,7 @@ def score_file(path, top: int = 100) -> dict:
                     for i in order]
             return {
                 "mode": "FITTED_ON_SHARED_COLUMNS",
+                "all_probabilities": [jsonable(float(x)) for x in prob],
                 "rows_scored": int(len(df)),
                 "columns_used": got["columns"],
                 "model_features_matched": len(mapping),
@@ -804,6 +805,9 @@ def score_file(path, top: int = 100) -> dict:
 
     return {
         "mode": "SCORE_ONLY",
+        # The whole vector, for the drift monitor. Sending only the top slice
+        # would let a batch look stable simply because its tail was not read.
+        "all_probabilities": [jsonable(float(x)) for x in prob],
         "rows_scored": int(len(df)),
         "features_matched": len(mapping),
         "features_expected": len(feat_names),
@@ -838,6 +842,211 @@ _DECISION_LOCK = threading.Lock()
 def operating_metrics() -> dict:
     return _read_json(C.REPORTS_DIR / "10_operating_metrics.json",
                       "Stage 11 (10_operating_metrics.py)")
+
+
+def _metrics_safe() -> dict:
+    """03_metrics.json, or an empty dict rather than an exception."""
+    try:
+        return _read_json(C.REPORTS_DIR / "03_metrics.json", "Stage 4/5")
+    except Exception:
+        return {}
+
+
+def monitor_batch(path=None, top_features: int = 12) -> dict:
+    """Compare a batch against the population the model was fitted on.
+
+    With no path, the training matrix is compared against itself, which is the
+    honest zero point: a monitor that cannot show you a quiet baseline is a
+    monitor you cannot read. Pass an uploaded file and it reports how far that
+    extract has moved and what the policy says to do about it.
+
+    The separation drift.py is built around is preserved end to end. Feature and
+    score drift are unsupervised, available on every batch, and can only ever say
+    that something CHANGED. Only realised precision, which needs closed
+    investigator outcomes, can say the model got WORSE, and only it may move a
+    precision-targeted cutoff.
+    """
+    import drift
+    import pandas as pd
+    from utils import load_frame
+
+    ref = load_frame(C.FEATURES_PARQUET)
+    if C.TARGET_COL in ref.columns:
+        ref = ref.drop(columns=[C.TARGET_COL])
+
+    oof = pd.read_csv(C.DATA_DIR / "oof_predictions.csv")
+    ref_scores = oof["p_ensemble_calibrated"].to_numpy(dtype=float)
+
+    # Which features the model leans on, so drift in a column it ignores does
+    # not raise an alarm nobody should act on.
+    importance: dict[str, float] = {}
+    try:
+        shp = _read_json(C.REPORTS_DIR / "05_shap_top_features.json", "Stage 7/8")
+        for row in shp.get("top_features_by_mean_abs_shap", []):
+            code = row.get("feature") or row.get("code")
+            if code:
+                importance[code] = float(row.get("mean_abs_shap", 0.0))
+    except Exception:
+        pass
+
+    if path is None:
+        cur, cur_scores = ref, ref_scores
+        source = {"batch": "the training population itself",
+                  "note": "The quiet baseline. Every measure sits at zero by "
+                          "construction, which is what a monitor with nothing "
+                          "to report should look like."}
+    else:
+        scored = score_file(path, top=1)
+        probs = scored.get("all_probabilities")
+        raw = pd.read_csv(Path(path), low_memory=False)
+        # A batch spells its columns however its own bank spells them. Comparing
+        # those strings against F-codes found zero shared columns and measured
+        # nothing, so resolve them the same way score_file does: by F-code, then
+        # by the dictionary's banking name.
+        by_real = {D.real_name(c).upper(): c for c in ref.columns}
+        rename = {}
+        for col in raw.columns:
+            code = (col if col in ref.columns
+                    else by_real.get(str(col).strip().upper()))
+            if code is not None and code not in rename.values():
+                rename[col] = code
+        cur = (raw[list(rename)].rename(columns=rename) if rename
+               else pd.DataFrame())
+        cur_scores = (np.asarray(probs, dtype=float) if probs is not None
+                      else np.asarray([], dtype=float))
+        source = {"batch": Path(path).name,
+                  "rows": int(scored.get("rows_scored", len(raw))),
+                  "mode": scored.get("mode"),
+                  "columns_in_batch": int(len(raw.columns)),
+                  "shared_columns": len(rename),
+                  "note": "Drift is measured only on columns this batch and the "
+                          "training data both have. Columns the batch does not "
+                          "carry are reported as missing, never imputed and "
+                          "then compared."}
+
+    feats = drift.feature_drift(ref, cur, importance=importance) if len(cur.columns) \
+        else {"n_features": 0, "weighted_psi": 0.0, "n_drifted": 0, "drifted": []}
+    scores = (drift.score_drift(ref_scores, cur_scores)
+              if len(cur_scores) >= 2 else
+              {"psi": 0.0, "ks": 0.0, "reference_mean": float(np.mean(ref_scores)),
+               "current_mean": None})
+
+    # Realised precision needs closed investigations. The audit trail is the
+    # only place those exist, and on a demo it is usually empty — which the
+    # policy is written to say out loud rather than read as good news.
+    try:
+        decisions = pd.DataFrame(decision_log(limit=5000).get("decisions", []))
+    except Exception:
+        decisions = pd.DataFrame()
+    # The audit trail records CONFIRMED_MULE / DISMISSED under `decision`;
+    # drift.realised_precision expects CONFIRMED / DISMISSED under `outcome`.
+    # Translate at the boundary rather than loosening either side.
+    if not decisions.empty and "decision" in decisions.columns:
+        decisions = decisions.assign(outcome=decisions["decision"].map(
+            {"CONFIRMED_MULE": "CONFIRMED", "DISMISSED": "DISMISSED"}))
+    prec = (drift.realised_precision(decisions)
+            if not decisions.empty and "outcome" in decisions.columns
+            else {"precision": None, "reviewed": 0, "sufficient": False,
+                  "note": "no closed investigator decisions yet"})
+
+    # Nothing measured is not the same as nothing wrong. assess() would return
+    # MONITOR here and the panel would read "all quantities inside tolerance",
+    # which is the precise failure drift.py exists to avoid.
+    measurable = bool(feats.get("n_features")) or len(cur_scores) >= 2
+    if not measurable:
+        decision = drift.DriftDecision(
+            action="CANNOT_ASSESS",
+            requires_human_signoff=True,
+            reasons=["No column of this batch could be matched to the training "
+                     "schema and no score distribution was produced, so nothing "
+                     "was compared. This is not a clean result: the monitor has "
+                     "no evidence either way and must not be read as calm."],
+            evidence={"shared_columns": source.get("shared_columns", 0),
+                      "scores_available": int(len(cur_scores))})
+    else:
+        # Hysteresis needs somewhere to remember. With state_path=None the
+        # streak reset on every call, so a condition could never reach the two
+        # consecutive windows it needs and the endpoint returned MONITOR no
+        # matter how far the batch had moved. State is kept per batch so
+        # repeated checks on the same source accumulate, which is also what
+        # makes the escalation visible in a demo.
+        key = "".join(ch if ch.isalnum() else "_"
+                      for ch in str(source.get("batch", "baseline")))[:60]
+        decision = drift.assess(feats, scores, prec, C.PRECISION_TARGET,
+                                state_path=C.DATA_DIR / "monitor_state" / f"{key}.json")
+
+    wpsi = float(feats.get("weighted_psi", 0.0))
+    band = ("severe" if wpsi >= drift.PSI_SEVERE
+            else "significant" if wpsi >= drift.PSI_SIGNIFICANT
+            else "moderate" if wpsi >= drift.PSI_MODERATE else "stable")
+    return {
+        "source": source,
+        # What this batch measures right now, before hysteresis decides whether
+        # to act on it. Reporting only the gated action hid the fact that a
+        # batch had moved severely but had not yet done so twice.
+        "signal": {
+            "weighted_feature_psi": round(wpsi, 4),
+            "band": band,
+            "score_psi": scores.get("psi"),
+            "assessable": measurable,
+            "note": ("This is the measurement. The action below applies "
+                     f"hysteresis: a condition must hold for "
+                     f"{drift.CONSECUTIVE_BREACHES} consecutive windows before "
+                     "it acts, so one noisy batch cannot trigger a retrain."),
+        },
+        "reference": {
+            "accounts": int(len(ref)),
+            "features": int(len(ref.columns)),
+            # The reference is not just a shape. Saying "9,082 accounts" without
+            # "81 of them mules" hides the thing that makes this hard, and it is
+            # the number a reader is looking for.
+            "mules": int(_metrics_safe().get("n_mules", 0)),
+            "base_rate_pct": _metrics_safe().get("prevalence_pct"),
+            "note": "The matrix the deployed model was fitted on. PSI bin edges "
+                    "come from this side, because re-binning on the current "
+                    "batch would measure nothing.",
+        },
+        "feature_drift": {**feats, "drifted": feats.get("drifted", [])[:top_features]},
+        "score_drift": scores,
+        "realised_precision": prec,
+        "decision": decision.to_dict(),
+        "thresholds": {
+            "psi_moderate": drift.PSI_MODERATE,
+            "psi_significant": drift.PSI_SIGNIFICANT,
+            "psi_severe": drift.PSI_SEVERE,
+            "score_psi_alarm": drift.SCORE_PSI_ALARM,
+            "ks_alarm": drift.KS_ALARM,
+            "consecutive_breaches_required": drift.CONSECUTIVE_BREACHES,
+            "min_reviewed_for_precision": drift.MIN_REVIEWED_FOR_PRECISION,
+            "why_these": "Industry conventions, not numbers we fitted: below "
+                         "0.10 stable, 0.10-0.25 moderate, above 0.25 "
+                         "significant. A bank's model-risk function already "
+                         "knows what a PSI of 0.25 means.",
+        },
+        "policy": {
+            "MONITOR": "Everything inside tolerance. Keep scoring.",
+            "RECALIBRATE": "The score distribution moved but the inputs did "
+                           "not. Ranking looks intact, so refit the calibrator "
+                           "and leave the models alone.",
+            "RETRAIN": "Inputs moved materially. Refit the models.",
+            "REFIT_THRESHOLDS": "Realised precision fell below target on enough "
+                                "closed cases. Re-derive cutoffs from confirmed "
+                                "outcomes.",
+            "CANNOT_ASSESS": "Nothing could be compared. Not a pass "
+                              "\u2014 the monitor has no evidence either way.",
+            "HALT_AUTOMATION": "The population being scored is no longer the "
+                               "population the model was fitted on. Automated "
+                               "freezing stops until a human signs off.",
+        },
+        "hysteresis": f"A condition must hold for {drift.CONSECUTIVE_BREACHES} "
+                      f"consecutive windows before it acts, so one noisy batch "
+                      f"cannot trigger a retrain.",
+    }
+
+
+def fairness_audit() -> dict:
+    return _read_json(C.REPORTS_DIR / "11_fairness_audit.json",
+                      "Stage 13 (11_fairness.py)")
 
 
 def record_decision(account_idx: int, decision: str, note: str = "",

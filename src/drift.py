@@ -253,8 +253,11 @@ def assess(feature_report: dict, score_report: dict, precision_report: dict,
     state = _load_state(state_path) if state_path else {}
     streak = dict(state.get("streaks", {}))
 
+    raw: dict[str, bool] = {}
+
     def breach(name: str, condition: bool) -> bool:
         """True only once a condition has held for enough consecutive windows."""
+        raw[name] = bool(condition)
         streak[name] = streak.get(name, 0) + 1 if condition else 0
         return streak[name] >= CONSECUTIVE_BREACHES
 
@@ -303,7 +306,22 @@ def assess(feature_report: dict, score_report: dict, precision_report: dict,
             f"stays inside tolerance; the ranking looks intact, so refit the "
             f"calibrator and leave the models alone")
     else:
-        reasons.append("all monitored quantities are inside tolerance")
+        # "Not yet confirmed" is not "fine". A batch can sit far outside
+        # tolerance and still take no action, because hysteresis requires the
+        # condition to hold twice. Saying "all quantities inside tolerance"
+        # while the weighted PSI reads 2.90 is simply false, and it is the
+        # sentence an operator would quote back when asking why nobody acted.
+        pending = [n for n, hit in raw.items() if hit]
+        if pending:
+            reasons.append(
+                "; ".join(
+                    f"{n.replace('_', ' ')} is OUTSIDE tolerance but has held "
+                    f"for {streak.get(n, 0)} of {CONSECUTIVE_BREACHES} required "
+                    f"consecutive windows"
+                    for n in pending)
+                + " — measured, not yet actioned")
+        else:
+            reasons.append("all monitored quantities are inside tolerance")
 
     # Say plainly when the deciding signal is missing, rather than reading
     # silence as good news.
@@ -322,6 +340,7 @@ def assess(feature_report: dict, score_report: dict, precision_report: dict,
                   "reviewed": precision_report.get("reviewed", 0),
                   "target_precision": target_precision,
                   "streaks": streak,
+                  "conditions_true_now": raw,
                   "consecutive_breaches_required": CONSECUTIVE_BREACHES})
 
     if state_path:

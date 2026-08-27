@@ -28,6 +28,7 @@ const SECTIONS = [
   { id: 'overview',   n: '11', label: 'Overview',           group: 'The Results' },
   { id: 'upload',     n: '12', label: 'Upload Dataset',     group: 'See It Run' },
   { id: 'pipeline',   n: '13', label: 'Pipeline',           group: 'See It Run' },
+  { id: 'deploy',     n: '14', label: 'Deployment',         group: 'See It Run' },
   // Off the rail: supporting evidence, still routable by URL and still
   // linked from the rubric map in Judge Mode.
   { id: 'models',     n: '--', label: 'Models',             group: 'The Results', rail: false },
@@ -1759,6 +1760,7 @@ function watchJob(id) {
 }
 
 let LOG_OPEN = false;   // survives the poll tick that rebuilds the panel
+let LOG_STICK = true;   // follow the newest line until the reader scrolls away
 
 function renderJob(j) {
   // renderJob replaces #up-status wholesale every 1500 ms, which destroyed
@@ -1766,6 +1768,10 @@ function renderJob(j) {
   // snapped shut on click and could only be read once polling stopped.
   const prev = $('#up-status details');
   if (prev) LOG_OPEN = prev.open;
+  // The rebuild below destroys the <pre>, and with it the reader's place in
+  // the log. Remember it, and whether they were sitting at the bottom.
+  const prevPre = prev && prev.querySelector('.uplog');
+  const keepTop = prevPre ? prevPre.scrollTop : null;
   const running = j.status === 'RUNNING';
   const tone = j.status === 'DONE' ? 'green' : j.status === 'FAILED' ? 'red' : 'amber';
   $('#up-status').innerHTML = `
@@ -1786,19 +1792,31 @@ function renderJob(j) {
         ${running ? `<button class="btn ghost" style="margin-top:12px"
            onclick="cancelJob('${esc(j.job_id)}')">CANCEL</button>` : ''}
         <details ${LOG_OPEN ? 'open' : ''} style="margin-top:12px"><summary class="tiny"
-          style="cursor:pointer;color:var(--amber)">LOG</summary>
+          style="cursor:pointer;color:var(--amber)">LOG${(j.log_tail || []).length
+            ? ` &middot; ${(j.log_tail || []).length} lines` : ''}</summary>
           <pre class="uplog">${esc((j.log_tail || []).join('\n'))}</pre></details>
       </div>
     </div>`;
-  wireJobLog();
+  wireJobLog(keepTop);
 }
 
-function wireJobLog() {
+function wireJobLog(keepTop) {
   const det = $('#up-status details');
   if (!det) return;
   det.addEventListener('toggle', () => { LOG_OPEN = det.open; });
   const pre = det.querySelector('.uplog');
-  if (det.open && pre) pre.scrollTop = pre.scrollHeight;   // newest lines in view
+  if (!det.open || !pre) return;
+  // Following cannot be driven from `toggle`: this <details> is re-created with
+  // the open attribute on every poll, and each re-insertion fires its own
+  // toggle event, which dragged the reader back to the bottom 1500 ms after
+  // every attempt to scroll up. The reader's own scroll position is the only
+  // honest signal, so keep it across the rebuild and follow the tail only when
+  // they are already at the tail.
+  if (LOG_STICK || keepTop == null) pre.scrollTop = pre.scrollHeight;
+  else pre.scrollTop = keepTop;
+  pre.addEventListener('scroll', () => {
+    LOG_STICK = pre.scrollHeight - pre.scrollTop - pre.clientHeight < 28;
+  });
 }
 
 async function cancelJob(id) {
@@ -1845,6 +1863,253 @@ function budgetTable(rb) {
     ]))}</table></div>`;
 }
 
+/* ---------- 14. deployment readiness ------------------------------------ */
+RENDER.deploy = () => {
+  panel($('#fairness-panel'), () => api('/api/fairness'), (d, n) => {
+    const cant = d.what_this_can_and_cannot_test || {};
+    const v = d.verdict || {};
+    const slice = (key, title, sub) => {
+      const b = d[key];
+      if (!b || !b.groups) return '';
+      return `
+        <h4 style="margin:18px 0 4px">${title}</h4>
+        <p class="small dim" style="margin:0 0 10px">${sub}</p>
+        <div class="scrollx"><table>${table(
+          ['Group', { t: 'Accounts', num: true }, { t: 'Real mules', num: true },
+           { t: 'Flagged', num: true }, { t: 'Selection rate', num: true },
+           { t: 'Precision', num: true }],
+          b.groups.map((g) => [
+            esc(g.group), num(g.accounts), num(g.true_mules), num(g.flagged),
+            pct(g.selection_rate, 2),
+            g.precision == null ? '<span class="dim">no flags</span>' : pct(g.precision, 1),
+          ]))}</table></div>
+        <p class="small dim" style="margin-top:8px">Most-flagged group:
+          <strong>${esc(b.most_burdened_group)}</strong>, at
+          ${num(b.selection_rate_spread, 2)}&times; the least-flagged group's rate.
+          Proxy signature: <strong>${b.proxy_signature_present ? 'PRESENT' : 'absent'}</strong>.</p>`;
+    };
+    n.innerHTML = `
+      <div class="callout amber"><div class="tiny">What this cannot test, first</div>
+        This extract carries <strong>no protected attribute</strong> &#8212; no gender, age,
+        occupation code, branch or district. A fairness audit by protected class is therefore
+        impossible on this data, and any number claiming otherwise would be invented. What is
+        tested instead is disparate impact on two proxies that are present and that a supervisor
+        asks about first in Indian retail banking: <strong>wealth</strong> and
+        <strong>cash dependence</strong>.</div>
+      ${slice('by_balance_quartile', 'By balance &#8212; a wealth proxy',
+        'If the model flagged low-balance customers several times more often, it would be a poverty detector wearing a fraud detector&#39;s clothes.')}
+      ${slice('by_cash_dependence', 'By cash dependence &#8212; a rural and informal-sector proxy',
+        'Cash-heavy customers skew rural, older and informal-sector. A model that treats cash as inherently suspicious over-flags exactly the population a public sector bank exists to serve.')}
+      <div class="callout ${v.slices_showing_the_proxy_signature
+        && v.slices_showing_the_proxy_signature.length ? 'red' : 'green'}" style="margin-top:16px">
+        <div class="tiny">Result</div>${esc(v.summary || '')}</div>
+      <div class="callout"><div class="tiny">And what it is not</div>
+        ${esc(v.not_a_clearance || '')}
+        <div style="margin-top:8px"><strong>Before deployment the bank must run:</strong>
+        ${esc(cant.what_the_bank_must_run_before_deployment || '')}</div></div>`;
+  });
+
+  // The monitor starts on the baseline, so the panel opens showing what a
+  // quiet monitor looks like rather than an empty box.
+  refreshMonitorRuns();
+  checkMonitor(null);
+
+  panel($('#load-panel'), () => api('/api/operating'), (d, n) => {
+    const L = d.investigator_load_by_band || {};
+    const lat = d.scoring_latency || {};
+    const budget = d.daily_review_budget || [];
+    const dr = d.extract_drift || {};
+    n.innerHTML = `
+      <div class="grid g4">
+        ${stat('One account', num(lat.single_account_ms_median, 1) + ' ms',
+               'a real-time hold decision', 'amber')}
+        ${stat('Batch throughput', num(lat.batch_accounts_per_second),
+               'accounts per second', 'green')}
+        ${stat('Freeze band load', num((L.HIGH || {}).analyst_days_to_clear, 1) + ' days',
+               num((L.HIGH || {}).accounts) + ' accounts, ' +
+               num((L.HIGH || {}).false_positives) + ' false alarms')}
+        ${stat('Review band load', num((L.MEDIUM || {}).analyst_days_to_clear, 1) + ' days',
+               num((L.MEDIUM || {}).false_positives_per_1000_accounts, 1) +
+               ' false alarms per 1,000', 'amber')}
+      </div>
+      <p style="margin-top:16px">At ${num(lat.batch_accounts_per_second)} accounts per second a
+        retail book of <strong>50 million accounts scores in about
+        ${num(50e6 / Math.max(lat.batch_accounts_per_second || 1, 1) / 3600, 1)} hours</strong>
+        &#8212; an overnight batch on one machine, before any parallelism.</p>
+      <h4 style="margin:18px 0 8px">What a given analyst team actually catches</h4>
+      <div class="scrollx"><table>${table(
+        [{ t: 'Analysts', num: true }, { t: 'Reviews/day', num: true },
+         { t: 'Mules found', num: true }, { t: 'Recall', num: true }, { t: 'Precision', num: true }],
+        budget.map((b) => [num(b.analysts), num(b.reviews_per_day), num(b.mules_found),
+                           pct(b.recall, 1), pct(b.precision, 1)]))}</table></div>
+      ${dr.available ? `<div class="callout amber" style="margin-top:16px">
+        <div class="tiny">Drift already measured on this file</div>
+        Against the <code>${esc(dr.reference_extract)}</code> extract,
+        <strong>${num(dr.columns_significantly_shifted)} of ${num(dr.columns_tested)}</strong>
+        columns have shifted significantly (${pct(dr.share_shifted, 1)}). This is why the
+        monitoring policy below distinguishes &ldquo;something changed&rdquo; from
+        &ldquo;the model got worse&rdquo;.</div>` : ''}`;
+  });
+};
+
+/* The case file for a single account: what the model decided, and the reasons
+   it decided it. Reasons arrive already ordered so the evidence supporting the
+   alert leads and the mitigating evidence follows. */
+function accountReasons(accounts, ranks) {
+  if (!accounts || !accounts.length) return '';
+  const rows = accounts.map((a) => {
+    const reasons = (a.top_reasons || []);
+    const up = reasons.filter((r) => (r.shap || 0) > 0).slice(0, 3);
+    const down = reasons.filter((r) => (r.shap || 0) < 0).slice(0, 1);
+    const chip = (r, cls) =>
+      `<div class="tiny" style="margin:2px 0">
+         <span class="pill ${cls}">${(r.shap || 0) > 0 ? '&#9650;' : '&#9660;'}</span>
+         <code style="font-size:11px">${esc(r.variable)}</code>
+         <span class="dim">${esc(r.meaning || '')}</span></div>`;
+    return [
+      `<code>${esc(String(a.account_idx))}</code>`,
+      `<strong>${num(a.risk_score)}</strong>`,
+      `<span class="pill ${a.band === 'HIGH' ? 'bad' : a.band === 'MEDIUM' ? 'warn' : 'ok'}">${esc(a.band)}</span>`,
+      a.confirmed_mule ? '<span class="pill bad">CONFIRMED MULE</span>'
+                       : '<span class="dim">not a mule</span>',
+      (up.map((r) => chip(r, 'bad')).join('') || '<span class="dim">no positive driver</span>')
+        + down.map((r) => chip(r, 'ok')).join(''),
+      `<span class="tiny">${esc(a.recommended_action || '')}</span>`,
+    ];
+  });
+  return `
+    <div class="panel"><header><h3>Why each account was flagged</h3>
+      <span class="tag pill">PER-ACCOUNT REASONS</span></header>
+      <div class="body">
+        <p class="small">The ${num(accounts.length)} highest-scoring accounts in this file, with the
+          features that drove each decision. Red &#9650; raised the risk, green &#9660; argued against
+          it. Every value is a SHAP contribution from a model that never trained on the account it
+          is explaining.</p>
+        <div class="scrollx" style="margin-top:12px"><table>${table(
+          ['Row', { t: 'Score', num: true }, 'Band', 'Ground truth',
+           'What drove the decision', 'Recommended action'],
+          rows)}</table></div>
+        ${muleRanks(ranks)}
+      </div>
+    </div>`;
+}
+
+/* Every confirmed mule and where it ranked, including the ones below the queue.
+   Recall is easy to quote and hard to feel; this is what it looks like. */
+function muleRanks(m) {
+  if (!m || !m.ranks || !m.ranks.length) return '';
+  const missed = m.ranks.filter((r) => !r.in_queue).length;
+  return `
+    <h4 style="margin:22px 0 6px">Where every confirmed mule ranked</h4>
+    <p class="small dim" style="margin:0 0 10px">The table above is the queue an analyst would
+      work, so it shows the ${num(m.shown_in_queue)} of ${num(m.total_mules)} mules that reached it.
+      These are all ${num(m.total_mules)}, including the ${num(missed)} that ranked too low to be
+      seen &#8212; the misses matter as much as the catches.</p>
+    <div class="scrollx"><table>${table(
+      [{ t: 'Rank', num: true }, { t: 'of', num: true }, { t: 'Row', num: true },
+       { t: 'Score', num: true }, 'Band', 'In the queue above?'],
+      m.ranks.map((r) => [
+        `<strong>${num(r.rank)}</strong>`, num(m.total_accounts), `<code>${num(r.row)}</code>`,
+        num(r.risk_score),
+        `<span class="pill ${r.band === 'HIGH' ? 'bad' : r.band === 'MEDIUM' ? 'warn' : 'ok'}">${esc(r.band)}</span>`,
+        r.in_queue ? '<span class="pill ok">caught</span>'
+                   : '<span class="pill bad">missed</span>',
+      ]))}</table></div>`;
+}
+
+/* The live drift monitor. Two things are shown separately and deliberately:
+   what this batch MEASURES, and what the policy has decided to ACT on. They
+   differ while a condition is waiting out its hysteresis, and collapsing them
+   into one number is how a monitor ends up reporting calm during a breach. */
+const ACTION_TONE = {
+  MONITOR: 'green', RECALIBRATE: 'amber', RETRAIN: 'amber',
+  REFIT_THRESHOLDS: 'amber', HALT_AUTOMATION: 'red', CANNOT_ASSESS: 'red',
+};
+
+function renderMonitor(d, n) {
+  const g = d.signal || {}, dec = d.decision || {}, f = d.feature_drift || {};
+  const sc = d.score_drift || {}, rp = d.realised_precision || {};
+  const tone = ACTION_TONE[dec.action] || 'amber';
+  const bandTone = { stable: 'green', moderate: 'amber',
+                     significant: 'amber', severe: 'red' }[g.band] || 'amber';
+  n.innerHTML = `
+    <div class="grid g4">
+      ${stat('Measured drift', (g.band || '—').toUpperCase(),
+             'weighted feature PSI ' + num(g.weighted_feature_psi, 3), bandTone)}
+      ${stat('Licensed action', esc((dec.action || '—').replace(/_/g, ' ')),
+             dec.requires_human_signoff ? 'human sign-off required' : 'no sign-off needed', tone)}
+      ${stat('Score distribution', num(sc.psi, 3),
+             'PSI of the model output itself', (sc.psi || 0) >= 0.10 ? 'red' : 'green')}
+      ${stat('Features compared', num(f.n_features),
+             num(f.n_drifted) + ' drifted', 'amber')}
+    </div>
+
+    <div class="callout ${tone}" style="margin-top:16px">
+      <div class="tiny">${esc(dec.action || '')}</div>
+      ${(dec.reasons || []).map((r) => `<div style="margin:4px 0">${esc(r)}</div>`).join('')}
+      <div class="small dim" style="margin-top:8px">${esc((d.policy || {})[dec.action] || '')}</div>
+    </div>
+
+    <div class="kv" style="margin-top:16px">
+      <dt>Batch</dt><dd><code>${esc((d.source || {}).batch || '')}</code>
+        ${(d.source || {}).rows ? num(d.source.rows) + ' rows, '
+          + num(d.source.shared_columns) + ' of ' + num(d.source.columns_in_batch)
+          + ' columns matched the training schema' : ''}</dd>
+      <dt>Reference</dt><dd class="num">${num((d.reference || {}).accounts)} accounts &times;
+        ${num((d.reference || {}).features)} features &mdash;
+        <strong>${num((d.reference || {}).mules)} confirmed mules</strong>
+        (${num((d.reference || {}).base_rate_pct, 2)}% base rate)</dd>
+      <dt>Score mean</dt><dd class="num">${num(sc.reference_mean, 6)} &rarr;
+        ${sc.current_mean == null ? '<span class="dim">not scored</span>' : num(sc.current_mean, 6)}</dd>
+      <dt>Realised precision</dt><dd>${rp.precision == null
+        ? `<span class="dim">unavailable &mdash; ${num(rp.reviewed || 0)} closed reviews, `
+          + `${num((d.thresholds || {}).min_reviewed_for_precision)} needed</span>`
+        : pct(rp.precision, 1) + ' on ' + num(rp.reviewed) + ' closed reviews'}</dd>
+    </div>
+
+    ${(f.drifted || []).length ? `<h4 style="margin:18px 0 8px">What moved most</h4>
+      <div class="scrollx"><table>${table(
+        ['Feature', { t: 'PSI', num: true }, { t: 'KS', num: true }],
+        f.drifted.slice(0, 10).map((r) => [
+          `<code>${esc(String(r.feature))}</code>`, num(r.psi, 3), num(r.ks, 3)]))}</table></div>` : ''}
+
+    <div class="callout" style="margin-top:16px">
+      <div class="tiny">Why unsupervised drift cannot move a threshold</div>
+      Feature and score drift are available on every batch with no labels, and they can only say
+      that something <strong>changed</strong>. Only realised precision &#8212; which needs closed
+      investigator outcomes &#8212; can say the model got <strong>worse</strong>, and only it may
+      move a precision-targeted cutoff. ${esc(d.hysteresis || '')}
+      <div class="small dim" style="margin-top:8px">PSI bands are industry convention, not numbers
+        we fitted: below ${num((d.thresholds || {}).psi_moderate, 2)} stable,
+        up to ${num((d.thresholds || {}).psi_significant, 2)} moderate,
+        ${num((d.thresholds || {}).psi_severe, 2)} and above severe.</div>
+    </div>`;
+}
+
+async function checkMonitor(jobId) {
+  const n = $('#monitor-panel');
+  if (!n) return;
+  n.innerHTML = '';
+  n.appendChild(el('div', 'loading', 'COMPARING AGAINST THE TRAINING POPULATION'));
+  try {
+    const d = await api('/api/monitoring' + (jobId ? '?job_id=' + encodeURIComponent(jobId) : ''));
+    renderMonitor(d, n);
+  } catch (e) { n.innerHTML = ''; n.appendChild(errorBox(e)); }
+}
+
+async function refreshMonitorRuns() {
+  const sel = $('#monitor-batch');
+  if (!sel) return;
+  let d;
+  try { d = await api('/api/jobs?limit=10'); } catch (e) { return; }
+  const opts = ['<option value="">the training population itself (baseline)</option>']
+    .concat((d.jobs || []).map((j) =>
+      `<option value="${esc(j.job_id)}">${esc(j.original_name)}</option>`));
+  sel.innerHTML = opts.join('');
+}
+
+
+
 async function showJobResults(id) {
   const out = $('#up-results');
   out.innerHTML = '';
@@ -1853,6 +2118,18 @@ async function showJobResults(id) {
   try { r = await api('/api/jobs/' + id + '/results'); }
   catch (e) { out.innerHTML = ''; out.appendChild(errorBox(e)); return; }
   if (!r.available) { out.innerHTML = ''; return; }
+  // A label-free run carries a mode rather than pipeline metrics, and has its
+  // own renderers. They paint into #up-status, so clear the pipeline panel.
+  if (r.mode) {
+    if (POLL) { clearInterval(POLL); POLL = null; }
+    out.innerHTML = '';
+    $('#up-status').innerHTML = '';
+    if (r.mode === 'TYPOLOGY_RANKING') renderTypology(r);
+    else if (r.mode === 'FITTED_ON_SHARED_COLUMNS') renderFitted(r);
+    else renderScoreOnly(r);
+    revealPanel('#up-status');
+    return;
+  }
 
   const s = r.schema || {}, ig = r.integrity || {}, m = r.metrics || {};
   const bands = r.bands || {};
@@ -1929,7 +2206,9 @@ async function showJobResults(id) {
       <p class="small dim" style="margin-top:12px">Full artefacts in
         <code>${esc(r.workdir)}/reports/</code>. Finished in ${num(r.elapsed_seconds, 0)}s.</p>
       </div>
-    </div>`;
+    </div>
+
+    ${accountReasons(r.accounts, r.mule_ranks)}`;
   revealPanel('#up-results');
 }
 
@@ -1951,7 +2230,7 @@ async function refreshJobs() {
                             : `${j.stages_complete}/${j.stages_total}`,
       num(j.elapsed_seconds, 0) + 's',
       `<code style="font-size:11px">${esc(j.workdir)}</code>`,
-      j.status === 'DONE'
+      j.status === 'DONE' || j.status === 'SCORED'
         ? `<button class="btn ghost" style="padding:3px 10px" onclick="showJobResults('${esc(j.job_id)}')">RESULTS</button>`
         // A reload drops the poller, so a run in flight became unwatchable and
         // its log unreadable until it finished. Re-attaching is all it needs.
@@ -1966,6 +2245,8 @@ async function refreshJobs() {
 (async function boot() {
   buildRail();
   judgeInit();
+  const mb = $('#monitor-run');
+  if (mb) mb.addEventListener('click', () => checkMonitor($('#monitor-batch').value || null));
   // Route BEFORE awaiting the network. Health is decoration; navigation is not.
   // Awaiting it first meant a slow or unreachable API left every section in its
   // raw HTML state, which rendered hero and judge stacked on top of each other.

@@ -312,7 +312,7 @@ hr.rule { border: 0; border-top: var(--b); margin: 18px 0; }
 .uplog{
   margin:10px 0 0; padding:11px; background:#000; border:1px solid var(--rule-soft);
   font-family:var(--mono); font-size:11px; line-height:1.5; color:var(--ink-dim);
-  max-height:240px; overflow:auto; white-space:pre-wrap; word-break:break-word;
+  max-height:420px; overflow:auto; white-space:pre-wrap; word-break:break-word;
 }
 
 /* ---------- hero / landing --------------------------------------------- */

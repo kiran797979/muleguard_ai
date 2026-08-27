@@ -313,129 +313,118 @@
         <header><h3>2 · The pipeline, end to end</h3>
           <span class="tag pill">WHAT WE DID</span></header>
         <div class="body">
-          <p>Ten stages, numbered as <code>src/pipeline.py</code> numbers them. The order matters more than any single stage, and one of them is deliberately
-            allowed to switch itself off.</p>
+          <p>Ten stages, numbered as <code>src/pipeline.py</code> numbers them. Rather than list them, here is one account moving through all of them. Every arrow is a real transformation, every stage writes a file the next one reads, and one stage &#8212; the graph &#8212; switches itself off when the file carries no counterparty columns.</p>
 
           <figure class="figure">
             <div class="fighead"><span class="n">FIGURE 2</span>
-              <h4>Dataflow: what enters each stage and what it writes out</h4></div>
+              <h4>One account, from raw row to explainable case card</h4></div>
             <div class="figbody">
-              <svg class="dg" viewBox="0 0 920 866" role="img" style="min-width:760px"
-                   aria-label="Vertical dataflow from a raw dataset through the stages pipeline.py runs to an investigator queue, with the graph stage on a conditional branch and the artefact written by each stage listed on the right.">
-                <text class="s2" x="660" y="86">ARTEFACTS WRITTEN</text>
-
-                <!-- input -->
-                <rect class="boxg" x="320" y="14" width="280" height="44"/>
-                <text class="t2 grn" x="460" y="42" text-anchor="middle">RAW DATASET — ANY SCHEMA</text>
-                <line class="ln" x1="460" y1="58" x2="460" y2="80"/>
-                <path class="ar" d="M453,77 L467,77 L460,88 Z"/>
-
-                <!-- stage 0 -->
-                <rect class="boxa" x="300" y="88" width="320" height="58"/>
-                <text class="n" x="316" y="110">STAGE 0</text>
-                <text class="t" x="316" y="131">INTEGRITY AUDIT</text>
-                <line class="ln" x1="460" y1="146" x2="460" y2="168"/>
-                <path class="ar" d="M453,165 L467,165 L460,176 Z"/>
-                <path class="dash" d="M620,117 L656,117"/>
-                <rect class="box" x="660" y="102" width="245" height="30"/>
-                <text class="s" x="672" y="121">06_integrity_audit.json</text>
-
-                <!-- stage 1 -->
-                <rect class="box" x="300" y="176" width="320" height="58"/>
-                <text class="n" x="316" y="198">STAGE 1</text>
-                <text class="t" x="316" y="219">CLEAN + DE-LEAK</text>
-                <line class="ln" x1="460" y1="234" x2="460" y2="256"/>
-                <path class="ar" d="M453,253 L467,253 L460,264 Z"/>
-                <path class="dash" d="M620,205 L656,205"/>
-                <rect class="box" x="660" y="190" width="245" height="30"/>
-                <text class="s" x="672" y="209">clean.parquet</text>
-
-                <!-- stage 2 -->
-                <rect class="box" x="300" y="264" width="320" height="58"/>
-                <text class="n" x="316" y="286">STAGE 2/3</text>
-                <text class="t" x="316" y="307">TRADECRAFT FEATURES</text>
-                <line class="ln" x1="460" y1="322" x2="460" y2="344"/>
-                <path class="ar" d="M453,341 L467,341 L460,352 Z"/>
-                <path class="dash" d="M620,293 L656,293"/>
-                <rect class="box" x="660" y="278" width="245" height="30"/>
-                <text class="s" x="672" y="297">features.parquet</text>
-
-                <!-- stage 3 -->
-                <rect class="box" x="300" y="352" width="320" height="58"/>
-                <text class="n" x="316" y="374">STAGE 4/5</text>
-                <text class="t" x="316" y="395">ENSEMBLE + NESTED CV</text>
-                <line class="ln" x1="460" y1="410" x2="460" y2="424"/>
-                <path class="ar" d="M453,421 L467,421 L460,432 Z"/>
-                <path class="dash" d="M620,381 L656,381"/>
-                <rect class="box" x="660" y="366" width="245" height="30"/>
-                <text class="s" x="672" y="385">model.joblib · oof_predictions.csv</text>
-
-                <!-- decision -->
-                <path class="boxa" d="M460,432 L530,468 L460,504 L390,468 Z"/>
-                <text class="t2 amb" x="460" y="473" text-anchor="middle">EDGES?</text>
-                <text class="s" x="546" y="463">Does the file contain</text>
-                <text class="s" x="546" y="477">counterparty columns?</text>
-
-                <!-- yes branch -->
-                <path class="ln" d="M390,468 L145,468 L145,510"/>
-                <path class="ar" d="M138,507 L152,507 L145,518 Z"/>
-                <text class="n" x="216" y="460">YES</text>
-                <rect x="20" y="520" width="250" height="70" fill="var(--bg-inset)"
-                      stroke="var(--ink-faint)" stroke-width="2.5" stroke-dasharray="7 5"/>
-                <text class="s2" x="36" y="542">STAGE 6 — CONDITIONAL</text>
-                <text class="t2" x="36" y="562" fill="var(--ink-dim)">GRAPH PROPAGATION</text>
-                <text class="s2" x="36" y="579">risk spread across edges</text>
-                <path class="ln" d="M270,563 L290,563"/>
-                <path class="ar" d="M289,556 L289,570 L300,563 Z"/>
-
-                <!-- no branch -->
-                <line class="ln" x1="460" y1="504" x2="460" y2="526"/>
-                <path class="ar" d="M453,523 L467,523 L460,534 Z"/>
-                <text class="n" x="474" y="522" fill="var(--ink-dim)">NO — STAGE SKIPS ITSELF</text>
-
-                <!-- stage 5 -->
-                <rect class="box" x="300" y="534" width="320" height="58"/>
-                <text class="n" x="316" y="556">STAGE 7/8</text>
-                <text class="t" x="316" y="577">SCORE · EXPLAIN · BAND</text>
-                <line class="ln" x1="460" y1="592" x2="460" y2="614"/>
-                <path class="ar" d="M453,611 L467,611 L460,622 Z"/>
-                <path class="dash" d="M620,563 L656,563"/>
-                <rect class="box" x="660" y="548" width="245" height="30"/>
-                <text class="s" x="672" y="567">risk_scores.csv · SHAP reasons</text>
-
-                <!-- stage 6 -->
-                <rect class="box" x="300" y="622" width="320" height="58"/>
-                <text class="n" x="316" y="644">STAGE 9 + 10</text>
-                <text class="t" x="316" y="665">RULES + ABLATION</text>
-                <line class="ln" x1="460" y1="680" x2="460" y2="702"/>
-                <path class="ar" d="M453,699 L467,699 L460,710 Z"/>
-                <path class="dash" d="M620,651 L656,651"/>
-                <rect class="box" x="660" y="636" width="245" height="30"/>
-                <text class="s" x="672" y="655">rule_hits.csv · ablation report</text>
-
-                <!-- stages 11 and 12: the figure used to stop before these -->
-                <rect class="box" x="300" y="710" width="320" height="58"/>
-                <text class="n" x="316" y="732">STAGE 11 + 12</text>
-                <text class="t" x="316" y="753">OPERATING METRICS + EXPORT</text>
-                <line class="ln" x1="460" y1="768" x2="460" y2="790"/>
-                <path class="ar" d="M453,787 L467,787 L460,798 Z"/>
-                <path class="dash" d="M620,739 L656,739"/>
-                <rect class="box" x="660" y="724" width="245" height="30"/>
-                <text class="s" x="672" y="743">operating metrics · alert bundle</text>
-
-                <!-- output -->
-                <rect class="boxg" x="300" y="798" width="320" height="50"/>
-                <text class="t2 grn" x="460" y="828" text-anchor="middle">RANKED QUEUE + REASONS</text>
+              <svg class="dg" viewBox="0 0 920 900" role="img" style="min-width:780px"
+                   aria-label="One account traced from a raw banking row through the integrity audit, cleaning, behavioural engineering, per-fold feature selection, three base models, the logistic stacker, Platt calibration, a 0 to 1000 risk score, its risk band, and finally an explainable case card built with out-of-fold SHAP.">
+                <text class="s2" x="272" y="26" text-anchor="end">WHAT THE ROW LOOKS LIKE HERE</text>
+                <rect class="boxg" x="320" y="44" width="280" height="44"/>
+                <text class="t2 grn" x="460" y="72" text-anchor="middle">RAW BANKING ROW</text>
+                <text class="s" x="272" y="70" text-anchor="end">3,925 columns</text>
+                <path class="dash" d="M282,66 L316,66"/>
+                <line class="ln" x1="460" y1="88" x2="460" y2="103"/>
+                <path class="ar" d="M453,103 L467,103 L460,114 Z"/>
+                <rect class="boxa" x="320" y="114" width="280" height="50"/>
+                <text class="n" x="338" y="136">STAGE 0</text>
+                <text class="t" x="338" y="156">INTEGRITY AUDIT</text>
+                <line class="ln" x1="460" y1="164" x2="460" y2="179"/>
+                <path class="ar" d="M453,179 L467,179 L460,190 Z"/>
+                <rect class="boxa" x="320" y="190" width="280" height="50"/>
+                <text class="n" x="338" y="212">STAGE 1</text>
+                <text class="t" x="338" y="232">CLEAN + LEAK REMOVAL</text>
+                <text class="s" x="272" y="219" text-anchor="end">1,471 features</text>
+                <path class="dash" d="M282,215 L316,215"/>
+                <line class="ln" x1="460" y1="240" x2="460" y2="255"/>
+                <path class="ar" d="M453,255 L467,255 L460,266 Z"/>
+                <rect class="boxa" x="320" y="266" width="280" height="50"/>
+                <text class="n" x="338" y="288">STAGE 2/3</text>
+                <text class="t" x="338" y="308">BEHAVIOURAL ENGINEERING</text>
+                <text class="s" x="272" y="295" text-anchor="end">1,506 features</text>
+                <path class="dash" d="M282,291 L316,291"/>
+                <line class="ln" x1="460" y1="316" x2="460" y2="331"/>
+                <path class="ar" d="M453,331 L467,331 L460,342 Z"/>
+                <rect class="boxa" x="320" y="342" width="280" height="50"/>
+                <text class="n" x="338" y="364">STAGE 4/5</text>
+                <text class="t" x="338" y="384">FOLD-SPECIFIC SELECTION</text>
+                <text class="s" x="272" y="371" text-anchor="end">250 features</text>
+                <path class="dash" d="M282,367 L316,367"/>
+                <line class="ln" x1="460" y1="392" x2="460" y2="408"/>
+                <line class="ln" x1="265" y1="408" x2="655" y2="408"/>
+                <line class="ln" x1="265" y1="408" x2="265" y2="413"/>
+                <path class="ar" d="M258,413 L272,413 L265,424 Z"/>
+                <line class="ln" x1="460" y1="408" x2="460" y2="413"/>
+                <path class="ar" d="M453,413 L467,413 L460,424 Z"/>
+                <line class="ln" x1="655" y1="408" x2="655" y2="413"/>
+                <path class="ar" d="M648,413 L662,413 L655,424 Z"/>
+                <rect class="box" x="180" y="424" width="170" height="54"/>
+                <text class="t2" x="265" y="447" text-anchor="middle">XGBOOST</text>
+                <text class="s" x="265" y="466" text-anchor="middle">AUPRC 0.894</text>
+                <rect class="box" x="375" y="424" width="170" height="54"/>
+                <text class="t2" x="460" y="447" text-anchor="middle">LIGHTGBM</text>
+                <text class="s" x="460" y="466" text-anchor="middle">AUPRC 0.818</text>
+                <rect class="box" x="570" y="424" width="170" height="54"/>
+                <text class="t2" x="655" y="447" text-anchor="middle">ISOLATION FOREST</text>
+                <text class="s" x="655" y="466" text-anchor="middle">AUROC 0.314 &#8212; below random</text>
+                <line class="ln" x1="265" y1="478" x2="265" y2="498"/>
+                <line class="ln" x1="460" y1="478" x2="460" y2="498"/>
+                <line class="ln" x1="655" y1="478" x2="655" y2="498"/>
+                <line class="ln" x1="265" y1="498" x2="655" y2="498"/>
+                <line class="ln" x1="460" y1="498" x2="460" y2="505"/>
+                <path class="ar" d="M453,505 L467,505 L460,516 Z"/>
+                <rect class="boxa" x="320" y="516" width="280" height="50"/>
+                <text class="t" x="460" y="538" text-anchor="middle">LOGISTIC STACKER</text>
+                <text class="s" x="460" y="556" text-anchor="middle">+15.98 &#183; +1.02 &#183; &#8722;0.44 &#8212; one weight is negative</text>
+                <line class="ln" x1="460" y1="566" x2="460" y2="581"/>
+                <path class="ar" d="M453,581 L467,581 L460,592 Z"/>
+                <rect class="boxa" x="320" y="592" width="280" height="46"/>
+                <text class="t" x="460" y="620" text-anchor="middle">PLATT CALIBRATION</text>
+                <text class="s" x="272" y="619" text-anchor="end">a real probability</text>
+                <path class="dash" d="M282,615 L316,615"/>
+                <line class="ln" x1="460" y1="638" x2="460" y2="653"/>
+                <path class="ar" d="M453,653 L467,653 L460,664 Z"/>
+                <rect class="box" x="320" y="664" width="280" height="44"/>
+                <text class="t2" x="460" y="692" text-anchor="middle">RISK SCORE = p &#215; 1000</text>
+                <text class="s" x="272" y="690" text-anchor="end">0 &#8211; 1000</text>
+                <path class="dash" d="M282,686 L316,686"/>
+                <line class="ln" x1="460" y1="708" x2="460" y2="724"/>
+                <line class="ln" x1="265" y1="724" x2="655" y2="724"/>
+                <line class="ln" x1="265" y1="724" x2="265" y2="729"/>
+                <path class="ar" d="M258,729 L272,729 L265,740 Z"/>
+                <line class="ln" x1="460" y1="724" x2="460" y2="729"/>
+                <path class="ar" d="M453,729 L467,729 L460,740 Z"/>
+                <line class="ln" x1="655" y1="724" x2="655" y2="729"/>
+                <path class="ar" d="M648,729 L662,729 L655,740 Z"/>
+                <rect class="boxg" x="180" y="740" width="170" height="56"/>
+                <text class="t2" x="265" y="761" text-anchor="middle">LOW</text>
+                <text class="s" x="265" y="777" text-anchor="middle">score &lt; 3</text>
+                <text class="s" x="265" y="791" text-anchor="middle">no action</text>
+                <rect class="boxa" x="375" y="740" width="170" height="56"/>
+                <text class="t2" x="460" y="761" text-anchor="middle">MEDIUM</text>
+                <text class="s" x="460" y="777" text-anchor="middle">3 &#8211; 912</text>
+                <text class="s" x="460" y="791" text-anchor="middle">analyst review queue</text>
+                <rect class="boxr" x="570" y="740" width="170" height="56"/>
+                <text class="t2" x="655" y="761" text-anchor="middle">HIGH</text>
+                <text class="s" x="655" y="777" text-anchor="middle">score &#8805; 912</text>
+                <text class="s" x="655" y="791" text-anchor="middle">freeze + escalate</text>
+                <line class="ln" x1="655" y1="796" x2="655" y2="814"/>
+                <line class="ln" x1="460" y1="814" x2="655" y2="814"/>
+                <line class="ln" x1="460" y1="796" x2="460" y2="819"/>
+                <path class="ar" d="M453,819 L467,819 L460,830 Z"/>
+                <rect class="box" x="60" y="834" width="190" height="44"/>
+                <text class="t2" x="155" y="855" text-anchor="middle">SHAP</text>
+                <text class="s" x="155" y="870" text-anchor="middle">computed out of fold</text>
+                <path class="dash" d="M254,856 L306,856"/>
+                <rect class="boxg" x="310" y="830" width="300" height="52"/>
+                <text class="t2 grn" x="460" y="852" text-anchor="middle">EXPLAINABLE CASE CARD</text>
+                <text class="s" x="460" y="870" text-anchor="middle">score &#183; band &#183; reasons &#183; next steps</text>
               </svg>
             </div>
-            <figcaption><strong>Stage 6 is a real branch, not decoration.</strong> With no counterparty columns it takes itself out of the pipeline and records why.</figcaption>
+            <figcaption><strong>Watch the width.</strong> 3,925 raw columns narrow to 1,471 once the leaks and dead columns are gone, widen to 1,506 when the behavioural families are added, then narrow again to the 250 this fold chose for itself. The stacker&#39;s third weight is negative &#8212; that is the isolation forest being read upside-down.</figcaption>
           </figure>
-
-          <div class="callout" style="margin-top:18px"><div class="tiny">Why the audit runs first</div>
-            Almost every pipeline cleans, trains, then validates. That order lets a contaminated dataset
-            produce a beautiful number that nobody questions, because by the time you are looking at
-            metrics you are already invested in them. Running falsification first means the pipeline can
-            tell you the benchmark is broken <em>before</em> it tells you how well it did on it.</div>
 
           <figure class="figure">
             <div class="fighead"><span class="n">FIGURE 3</span>
@@ -710,39 +699,6 @@
         </div>
       </div>
 
-      <!-- ---------- 5. refusals ---------- -->
-      <div class="panel">
-        <header><h3>5 · What the system refuses to do</h3>
-          <span class="tag pill warn">CONSTRAINTS</span></header>
-        <div class="body">
-          <p>These are design constraints, not limitations we ran out of time to fix. Each one is a place
-            where the easy version of this project would have scored better and meant less.</p>
-          <div class="grid g3f" style="margin-top:14px">
-            <div class="block"><h3>It will not invent a graph</h3>
-              <p class="small" style="margin-top:8px">Without counterparty edges there is no network. The
-                stage disables itself and says so, rather than shipping a diagram built from
-                correlation.</p></div>
-            <div class="block"><h3>It will not guess the label</h3>
-              <p class="small" style="margin-top:8px">Ambiguity raises an error naming the candidates. A
-                silently wrong target is the worst possible failure because everything downstream still
-                looks like it worked.</p></div>
-            <div class="block"><h3>It will not hide a failed component</h3>
-              <p class="small" style="margin-top:8px">A model that scores below random is reported with its
-                negative weight. A rule that does not beat the base rate is published as not working.</p></div>
-            <div class="block"><h3>It will not report accuracy</h3>
-              <p class="small" style="margin-top:8px">At a fraction of a percent prevalence, accuracy is a
-                number that rewards doing nothing. Precision, recall, AUPRC and cost per review only.</p></div>
-            <div class="block"><h3>It will not file anything</h3>
-              <p class="small" style="margin-top:8px">Case packs assemble the material a human needs to
-                make a suspicious-transaction decision. The decision, and the filing, stay with the
-                human.</p></div>
-            <div class="block"><h3>It will not act alone</h3>
-              <p class="small" style="margin-top:8px">The harsh band is a recommendation to an AML desk,
-                with the reasons attached and a dismissal path. No automated blocking without sign-off.</p></div>
-          </div>
-        </div>
-      </div>
-
       <div class="callout" style="margin-top:4px"><div class="tiny">Now the evidence</div>
         Everything above is a claim about method. The rest of this site is where those claims get tested
         against a real file: what the integrity audit found, what the leak defence removed, how the models
@@ -750,6 +706,81 @@
         <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap">
           <button class="btn" data-goto="integrity">START WITH WHAT WE FOUND →</button>
           <button class="btn ghost" data-goto="models">GO STRAIGHT TO THE RESULTS</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= DEPLOYMENT ================= -->
+    <section id="s-deploy" hidden>
+      <div class="secthead">
+        <div class="eyebrow">14 &#8212; Into the bank</div>
+        <h1>Deployment Readiness</h1>
+        <p>What it would take to run this inside Bank of India, measured rather than asserted &#8212;
+           and an honest list of what is still missing. A team that names its gaps precisely is
+           closer to deployment than one that claims it has none.</p>
+      </div>
+
+      <div class="panel">
+        <header><h3>1 &middot; Does it fall unfairly on anyone?</h3>
+          <span class="tag pill warn">DISPARATE IMPACT</span></header>
+        <div class="body"><div id="fairness-panel"></div></div>
+      </div>
+
+      <div class="panel">
+        <header><h3>2 &middot; What it costs to run</h3>
+          <span class="tag pill">THROUGHPUT AND ANALYST LOAD</span></header>
+        <div class="body"><div id="load-panel"></div></div>
+      </div>
+
+
+      <div class="panel">
+        <header><h3>3 &middot; Live drift monitor</h3>
+          <span class="tag pill warn">RUN IT NOW</span></header>
+        <div class="body">
+          <p>Compare any batch against the population the model was actually fitted on. Pick the
+             baseline to see what a quiet monitor looks like, or an uploaded file to see how far a
+             new extract has moved and what the policy licenses in response.</p>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:14px 0">
+            <select id="monitor-batch" class="btn ghost"
+                    style="padding:7px 10px;min-width:280px"></select>
+            <button class="btn" id="monitor-run">CHECK DRIFT</button>
+          </div>
+          <div id="monitor-panel"></div>
+        </div>
+      </div>
+      <div class="panel">
+        <header><h3>4 &middot; What we would not deploy without</h3>
+          <span class="tag pill bad">GAPS</span></header>
+        <div class="body">
+          <p>The model is production-grade. The system around it is not, and these are the pieces a
+             bank would have to add. None of them is research &#8212; all are engineering Bank of India
+             already does for every model it runs.</p>
+          <div class="grid g3f" style="margin-top:14px">
+            <div class="block"><h3>Authentication</h3>
+              <p class="small" style="margin-top:8px">This demo binds to localhost with no auth.
+                A deployment needs SSO, role separation between analyst and approver, and an
+                access log on every alert read.</p></div>
+            <div class="block"><h3>Protected-class fairness</h3>
+              <p class="small" style="margin-top:8px">The proxy slices above are clean, but the real
+                test needs gender, age, occupation and district &#8212; held in the bank&#39;s CRM,
+                not in this extract. Same code path, different grouping column.</p></div>
+            <div class="block"><h3>Model governance</h3>
+              <p class="small" style="margin-top:8px">A model card, a named approver, and a
+                champion&#47;challenger record. Nothing here says who authorised this model into
+                production, because nothing has been.</p></div>
+            <div class="block"><h3>Live monitoring</h3>
+              <p class="small" style="margin-top:8px">The drift policy is written and the detectors
+                are built. They are not yet wired to a nightly feed with an alerting threshold and
+                an on-call owner.</p></div>
+            <div class="block"><h3>More positives</h3>
+              <p class="small" style="margin-top:8px">81 confirmed mules is enough to demonstrate a
+                method and not enough to certify a freeze. A bank would want thousands, and the
+                month confound means none of these came from a clean sample.</p></div>
+            <div class="block"><h3>Shadow-mode pilot</h3>
+              <p class="small" style="margin-top:8px">Score the book nightly, compare against what
+                the AML desk actually flagged, change nothing. Freeze authority is earned last,
+                after precision holds on real outcomes for a quarter.</p></div>
+          </div>
         </div>
       </div>
     </section>

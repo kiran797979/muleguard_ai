@@ -262,9 +262,23 @@ def results(job: Job) -> dict:
     """Headline numbers from a finished run, read from its own workdir."""
     import json
 
+    rep = job.workdir / "reports"
+    if job.status == "SCORED":
+        # A label-free run has no pipeline reports; it has the scoring payload,
+        # which the browser renders through its own mode-specific renderer.
+        p = rep / "score_result.json"
+        if p.exists():
+            try:
+                saved = json.loads(p.read_text(encoding="utf-8"))
+                saved["available"] = True
+                saved["workdir"] = str(job.workdir.relative_to(ROOT))
+                saved["elapsed_seconds"] = round(job.elapsed(), 1)
+                return saved
+            except json.JSONDecodeError:
+                pass
+        return {"available": False, "status": job.status}
     if job.status != "DONE":
         return {"available": False, "status": job.status}
-    rep = job.workdir / "reports"
 
     def read(name):
         p = rep / name
@@ -277,6 +291,10 @@ def results(job: Job) -> dict:
 
     m, sc, cl, ig = (read("03_metrics.json"), read("05_scoring_report.json"),
                      read("01_clean_report.json"), read("06_integrity_audit.json"))
+    # The per-account case files. The pipeline has always written these into the
+    # job's own workdir; they were simply never sent to the browser, so an
+    # upload reported a score with no reason attached to any of it.
+    cards = read("05_account_reports.json")
     out = {"available": True, "workdir": str(job.workdir.relative_to(ROOT)),
            "elapsed_seconds": round(job.elapsed(), 1)}
     if cl:
@@ -310,4 +328,30 @@ def results(job: Job) -> dict:
             out["n_mules"] = m.get("n_mules")
     if sc:
         out["bands"] = sc.get("band_stats", {})
+    if cards and cards.get("accounts"):
+        out["accounts"] = cards["accounts"][:15]
+    # Where every confirmed mule landed, including the ones that ranked too low
+    # to appear in the queue above. A card list shows the alerts you would work;
+    # it cannot show the mules you would miss, and those are the more useful half
+    # of the picture when judging whether the ranking is any good.
+    try:
+        import pandas as pd
+        rs = job.workdir / "data" / "risk_scores.csv"
+        if rs.exists():
+            r = (pd.read_csv(rs).sort_values("risk_score", ascending=False)
+                 .reset_index(drop=True))
+            if "y_true" in r.columns and int(r["y_true"].sum()) > 0:
+                hit = r.index[r["y_true"] == 1].tolist()
+                out["mule_ranks"] = {
+                    "total_accounts": int(len(r)),
+                    "total_mules": int(len(hit)),
+                    "shown_in_queue": int(sum(1 for i in hit if i < 15)),
+                    "ranks": [{"rank": int(i) + 1,
+                               "row": int(r.loc[i, "account_idx"]),
+                               "risk_score": int(r.loc[i, "risk_score"]),
+                               "band": str(r.loc[i, "band"]),
+                               "in_queue": bool(i < 15)} for i in hit],
+                }
+    except Exception:
+        pass
     return out

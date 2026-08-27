@@ -167,20 +167,34 @@ def global_report(sv: np.ndarray, names: list[str]) -> dict:
 
 
 def reasons_for(sv_row: np.ndarray, names: list[str], k: int = 6) -> list[dict]:
-    order = np.argsort(np.abs(sv_row))[::-1][:k]
-    out = []
-    for j in order:
-        if sv_row[j] == 0:
-            continue
+    """The case for flagging this account, then the case against.
+
+    Ordering by |SHAP| alone was wrong for a case file. On a HIGH-band account
+    scoring 925 it returned six reasons that all read "lowers risk", because
+    those happened to carry the largest magnitudes. An investigator opening that
+    card sees the model's strongest arguments AGAINST the decision it just made,
+    which is worse than no explanation at all.
+
+    A case file leads with the evidence supporting the action. What argues the
+    other way still belongs there — it is what the investigator needs in order
+    to dismiss the alert — but it comes second and is labelled as mitigating.
+    """
+    def entry(j) -> dict:
         code = names[j]
-        out.append({
+        return {
             "variable": D.real_name(code),
             "feature": code,
             "meaning": D.explain(code),
             "effect": "raises risk" if sv_row[j] > 0 else "lowers risk",
             "shap": round(float(sv_row[j]), 6),
-        })
-    return out
+        }
+
+    pos = [j for j in np.argsort(sv_row)[::-1] if sv_row[j] > 0]
+    neg = [j for j in np.argsort(sv_row) if sv_row[j] < 0]
+    # Most of the card is the case for the alert; keep a couple of counterpoints.
+    n_neg = min(len(neg), max(1, k // 3))
+    n_pos = min(len(pos), k - n_neg)
+    return [entry(j) for j in pos[:n_pos]] + [entry(j) for j in neg[:n_neg]]
 
 
 def account_cards(sv, names, scores, bands, y, n: int = 25) -> list[dict]:
