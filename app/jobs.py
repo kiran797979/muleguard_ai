@@ -73,6 +73,7 @@ class Job:
     started_at: float = field(default_factory=time.time)
     finished_at: float | None = None
     log_path: Path | None = None
+    exit_code: int | None = None
     proc: subprocess.Popen | None = None
     error: str | None = None
     target_override: str | None = None
@@ -140,6 +141,34 @@ def accept_upload(filename: str, stream, target: str | None = None) -> Job:
         shutil.rmtree(workdir, ignore_errors=True)
         raise UploadRejected("The uploaded file is empty.")
 
+    # Convert a spreadsheet to CSV once, here, and let everything downstream
+    # read that instead.
+    #
+    # openpyxl holds a Python object per cell. A 500 x 3,925 sheet is about two
+    # million of them, which measured at 1.5-3 GB of resident memory. The file
+    # was then parsed AGAIN by detect_target in this process, and a THIRD time
+    # by the pipeline subprocess. On a 16 GB laptop with other work running that
+    # exhausted memory, and the child died from an allocation failure before it
+    # could write a single line of log — surfacing to the user as "Pipeline
+    # failed / Unknown failure" with an empty log and no clue why.
+    #
+    # One parse, then a CSV that is cheap to re-read, removes the whole class of
+    # failure and makes every later stage faster.
+    if suffix in (".xlsx", ".xls"):
+        try:
+            import pandas as pd
+            frame = pd.read_excel(stored)
+            csv_path = data_dir / "uploaded.csv"
+            frame.to_csv(csv_path, index=False)
+            del frame
+            stored.unlink(missing_ok=True)
+            stored = csv_path
+        except Exception as exc:  # noqa: BLE001
+            shutil.rmtree(workdir, ignore_errors=True)
+            raise UploadRejected(
+                f"Could not read that spreadsheet: {exc}. Saving it as .csv "
+                f"and uploading that usually works.") from exc
+
     job = Job(job_id=job_id, original_name=str(filename)[:120],
               stored_path=stored, workdir=workdir,
               target_override=(target or None))
@@ -183,6 +212,7 @@ def start(job: Job, fast: bool = True) -> Job:
             job.status = "DONE"
         else:
             job.status = "FAILED"
+            job.exit_code = int(code)
             job.error = _last_error(job)
         log.close()
 
@@ -192,8 +222,23 @@ def start(job: Job, fast: bool = True) -> Job:
 
 def _last_error(job: Job) -> str:
     """Pull something useful out of the log rather than just an exit code."""
-    if not job.log_path or not job.log_path.exists():
-        return "The pipeline exited non-zero and wrote no log."
+    code = getattr(job, "exit_code", None)
+    # An empty log used to surface as "Unknown failure.", which tells a user
+    # nothing and cost real time to diagnose. The exit code is always known and
+    # is often the whole answer: 1 is a Python traceback, 3221225477 is an
+    # access violation, and a negative code is a signal.
+    if not job.log_path or not job.log_path.exists() or not job.log_path.stat().st_size:
+        detail = f"exit code {code}" if code is not None else "no exit code recorded"
+        hint = ""
+        if code in (3221225477, -1073741819):
+            hint = (" — an access violation, which on Windows usually means a "
+                    "native library ran out of memory. A large .xlsx is the "
+                    "usual cause: try saving it as .csv.")
+        elif code == 3221225725 or code == -1073741571:
+            hint = " — stack overflow in a native library."
+        elif code is not None and code < 0:
+            hint = " — the process was killed by a signal."
+        return (f"The pipeline exited before writing any log ({detail}){hint}")
     lines = job.log_path.read_text(encoding="utf-8", errors="replace").splitlines()
     for line in reversed(lines):
         if "[ERROR]" in line:
