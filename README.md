@@ -209,16 +209,16 @@ from structure alone, with no knowledge of the schema.
 These are design constraints, not unfinished work. Each is a place where the easy
 version would have scored better and meant less.
 
-| | |
-|---|---|
-| **Won't invent a graph** | No counterparty data, no network. The stage disables itself and says why. |
-| **Won't guess the label** | Ambiguity raises an error naming the candidates. A silently wrong target is the worst failure, because everything downstream still looks like it worked. |
-| **Won't hide a failed component** | The isolation forest scores below random and is reported with its **−0.44** stacking weight. 7 of 12 AML rules don't beat the base rate, and that is published. |
-| **Won't report accuracy** | At this prevalence it rewards doing nothing. |
-| **Won't file anything** | Case packs assemble what a human needs. The decision and the filing stay with the human. |
-| **Won't score what it can't score** | Below half its schema the ensemble is measurably random, so it declines and says why instead of returning a confident number. |
-| **Won't call a ranking a detection** | With no labels it cannot verify a signal's direction, so the typology route is labelled unvalidated and cites the extract where it scored worse than chance. |
-| **Won't act alone indefinitely** | The drift policy has a written condition — weighted PSI ≥ 0.50 — under which **automated freezing stops until a human signs off**. |
+|                                      |                                                                                                                                                                 |
+| --------------------------------------| -----------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **Won't invent a graph**             | No counterparty data, no network. The stage disables itself and says why.                                                                                       |
+| **Won't guess the label**            | Ambiguity raises an error naming the candidates. A silently wrong target is the worst failure, because everything downstream still looks like it worked.        |
+| **Won't hide a failed component**    | The isolation forest scores below random and is reported with its **−0.44** stacking weight. 7 of 12 AML rules don't beat the base rate, and that is published. |
+| **Won't report accuracy**            | At this prevalence it rewards doing nothing.                                                                                                                    |
+| **Won't file anything**              | Case packs assemble what a human needs. The decision and the filing stay with the human.                                                                        |
+| **Won't score what it can't score**  | Below half its schema the ensemble is measurably random, so it declines and says why instead of returning a confident number.                                   |
+| **Won't call a ranking a detection** | With no labels it cannot verify a signal's direction, so the typology route is labelled unvalidated and cites the extract where it scored worse than chance.    |
+| **Won't act alone indefinitely**     | The drift policy has a written condition — weighted PSI ≥ 0.50 — under which **automated freezing stops until a human signs off**.                              |
 
 ---
 
