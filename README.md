@@ -283,3 +283,9 @@ python -m pytest tests/ -q      # 151 tests
 
 Runs on Windows, macOS and Linux from one source tree: `pathlib` throughout,
 UTF-8 forced on all I/O, no shell calls, no hardcoded paths.
+
+
+## Team
+
+- B M Kiran — `kiran797979`
+- V Hasini — `hasinivinnakota`
